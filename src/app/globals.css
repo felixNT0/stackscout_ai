@@ -1,0 +1,88 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+    --primary: 255 81% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 187 76% 47%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 224 71% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 255 81% 60%;
+    --radius: 0.5rem;
+    --midnight-navy: 224 54% 12%;
+    --electric-violet: 255 81% 60%;
+    --digital-cyan: 187 76% 47%;
+    --light-bg: 217 22% 97%;
+    --light-surface: 0 0% 100%;
+    --dark-bg: 222 48% 7%;
+    --dark-surface: 224 54% 16%;
+    --dark-elevated: 226 46% 23%;
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+    --error: 0 84% 60%;
+  }
+
+  .dark {
+    --background: 222 48% 7%;
+    --foreground: 225 23% 98%;
+    --card: 224 54% 16%;
+    --card-foreground: 225 23% 98%;
+    --popover: 224 54% 16%;
+    --popover-foreground: 225 23% 98%;
+    --primary: 255 81% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 187 76% 47%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 223 47% 11%;
+    --accent-foreground: 225 23% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 223 47% 11%;
+    --input: 223 47% 11%;
+    --ring: 255 81% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* Pointer cursor on interactive elements (Tailwind v4 defaults to `default`) */
+  a[href],
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"],
+  [role="menuitem"],
+  [role="option"],
+  [role="tab"],
+  [role="switch"]:not([aria-disabled="true"]),
+  label:has(input[type="checkbox"]:not(:disabled)),
+  label:has(input[type="radio"]:not(:disabled)),
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}

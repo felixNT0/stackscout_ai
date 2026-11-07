@@ -1,0 +1,524 @@
+// Prisma schema — mirrors src/supabase/migrations/001_initial_schema.sql + 002_roles_rls.sql
+// Field names intentionally keep snake_case to match existing column names.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// NextAuth models
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // hashed password for credentials auth
+  accounts      Account[]
+  sessions      Session[]
+  profile       Profile?
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  user_id    String
+  token      String   @unique
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  @@index([user_id])
+  @@map("password_reset_tokens")
+}
+
+model Profile {
+  id                   String   @id @default(uuid()) @db.Uuid
+  user_id              String   @unique
+  user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  full_name            String?
+  professional_headline String?
+  location             String?
+  portfolio_url        String?
+  github_url           String?
+  linkedin_url         String?
+  phone                String?
+  role                 String   @default("user")
+  created_at           DateTime @default(now()) @db.Timestamptz()
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("profiles")
+}
+
+model JobPreference {
+  id                   String   @id @default(uuid()) @db.Uuid
+  user_id              String   @unique
+  job_titles           String[] @default([])
+  skills               String[] @default([])
+  experience_level     String?
+  employment_type      String[] @default([])
+  salary_min           Int?
+  salary_max           Int?
+  salary_currency      String?
+  remote_only          Boolean  @default(false)
+  preferred_countries  String[] @default([])
+  preferred_locations  String[] @default([])
+  created_at           DateTime @default(now()) @db.Timestamptz()
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("job_preferences")
+}
+
+model Resume {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_id       String
+  file_name     String
+  file_path     String
+  file_size     Int
+  file_type     String
+  extracted_text String?
+  status        String   @default("pending")
+  error_message String?
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  candidate_profile CandidateProfile?
+
+  @@index([user_id])
+  @@map("resumes")
+}
+
+model CandidateProfile {
+  id                     String   @id @default(uuid()) @db.Uuid
+  user_id                String   @unique 
+  resume_id              String?  @unique @db.Uuid
+  full_name              String?
+  professional_headline  String?
+  email                  String?
+  phone                  String?
+  location               String?
+  portfolio_url          String?
+  github_url             String?
+  linkedin_url           String?
+  summary                String?
+  total_years_experience Int?
+  embedding              String?   @db.Text
+  created_at             DateTime @default(now()) @db.Timestamptz()
+  updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  resume       Resume?            @relation(fields: [resume_id], references: [id], onDelete: SetNull)
+  skills       CandidateSkill[]
+  experiences  WorkExperience[]
+  education    Education[]
+  projects     CandidateProject[]
+  matches      JobMatch[]
+  documents    GeneratedDocument[]
+
+  @@index([user_id])
+  @@map("candidate_profiles")
+}
+
+model CandidateSkill {
+  id                   String   @id @default(uuid()) @db.Uuid
+  candidate_profile_id String   @db.Uuid
+  skill_name           String
+  skill_category       String
+  proficiency          String
+  years_experience     Int?
+  is_professional      Boolean  @default(false)
+  evidence             String?
+  created_at           DateTime @default(now()) @db.Timestamptz()
+
+  profile CandidateProfile @relation(fields: [candidate_profile_id], references: [id], onDelete: Cascade)
+
+  @@index([candidate_profile_id])
+  @@map("candidate_skills")
+}
+
+model WorkExperience {
+  id                   String    @id @default(uuid()) @db.Uuid
+  candidate_profile_id String    @db.Uuid
+  job_title            String
+  company              String
+  location             String?
+  start_date           DateTime? @db.Date
+  end_date             DateTime? @db.Date
+  is_current           Boolean   @default(false)
+  responsibilities     String[]  @default([])
+  achievements         String[]  @default([])
+  created_at           DateTime  @default(now()) @db.Timestamptz()
+
+  profile CandidateProfile @relation(fields: [candidate_profile_id], references: [id], onDelete: Cascade)
+
+  @@index([candidate_profile_id])
+  @@map("work_experiences")
+}
+
+model Education {
+  id                   String    @id @default(uuid()) @db.Uuid
+  candidate_profile_id String    @db.Uuid
+  institution          String
+  degree               String
+  field_of_study       String?
+  start_date           DateTime? @db.Date
+  end_date             DateTime? @db.Date
+  gpa                  String?
+  created_at           DateTime  @default(now()) @db.Timestamptz()
+
+  profile CandidateProfile @relation(fields: [candidate_profile_id], references: [id], onDelete: Cascade)
+
+  @@index([candidate_profile_id])
+  @@map("education")
+}
+
+model CandidateProject {
+  id                   String    @id @default(uuid()) @db.Uuid
+  candidate_profile_id String    @db.Uuid
+  name                 String
+  description          String?
+  technologies         String[]  @default([])
+  url                  String?
+  start_date           DateTime? @db.Date
+  end_date             DateTime? @db.Date
+  is_personal          Boolean   @default(false)
+  created_at           DateTime  @default(now()) @db.Timestamptz()
+
+  profile CandidateProfile @relation(fields: [candidate_profile_id], references: [id], onDelete: Cascade)
+
+  @@index([candidate_profile_id])
+  @@map("candidate_projects")
+}
+
+model JobSource {
+  id                  String    @id @default(uuid()) @db.Uuid
+  name                String    @unique
+  provider_type       String
+  base_url            String?
+  api_key_required    Boolean   @default(true)
+  is_active           Boolean   @default(true)
+  last_sync_at        DateTime? @db.Timestamptz()
+  sync_frequency_hours Int?
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  sync_logs ProviderSyncLog[]
+
+  @@map("job_sources")
+}
+
+model Job {
+  id               String   @id @default(uuid()) @db.Uuid
+  external_id      String?
+  title            String
+  company          String
+  company_logo     String?
+  description      String
+  responsibilities String[] @default([])
+  required_skills  String[] @default([])
+  preferred_skills String[] @default([])
+  location         String?
+  country          String?
+  remote_status    String?
+  employment_type  String?
+  experience_level String?
+  salary_min       Int?
+  salary_max       Int?
+  salary_currency  String?
+  salary_period    String?
+  application_url  String
+  source_name      String
+  source_url       String?
+  published_at     DateTime? @db.Timestamptz()
+  discovered_at    DateTime  @default(now()) @db.Timestamptz()
+  last_verified_at DateTime? @db.Timestamptz()
+  expiration_date  DateTime? @db.Timestamptz()
+  status           String   @default("active")
+  raw_source_data  Json?
+  embedding        String?   @db.Text
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  matches      JobMatch[]
+  saved_jobs   SavedJob[]
+  applications Application[]
+  documents    GeneratedDocument[]
+
+  @@unique([external_id, source_name])
+  @@index([company])
+  @@index([location])
+  @@index([remote_status])
+  @@index([employment_type])
+  @@index([experience_level])
+  @@index([status])
+  @@index([discovered_at])
+  @@map("jobs")
+}
+
+model JobSearch {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String
+  query          String
+  filters        Json     @default("{}")
+  results_count  Int      @default(0)
+  saved          Boolean  @default(false)
+  created_at     DateTime @default(now()) @db.Timestamptz()
+
+  alerts SearchAlert[]
+
+  @@index([user_id])
+  @@map("job_searches")
+}
+
+model JobMatch {
+  id                       String   @id @default(uuid()) @db.Uuid
+  user_id                  String   
+  job_id                   String   @db.Uuid
+  candidate_profile_id     String?  @db.Uuid
+  compatibility_score      Int
+  technical_stack_score    Int
+  experience_score         Int
+  responsibilities_score   Int
+  seniority_score          Int
+  location_score           Int
+  industry_score           Int
+  matching_skills          String[] @default([])
+  missing_skills           String[] @default([])
+  relevant_experience      String?
+  potential_weaknesses     String[] @default([])
+  seniority_compatibility  String?
+  location_eligibility     String?
+  explanation              String?
+  recommendation           String?
+  created_at               DateTime @default(now()) @db.Timestamptz()
+  updated_at               DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  job       Job               @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  candidate CandidateProfile? @relation(fields: [candidate_profile_id], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, job_id])
+  @@index([user_id])
+  @@index([job_id])
+  @@index([compatibility_score])
+  @@map("job_matches")
+}
+
+model SavedJob {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String
+  job_id     String   @db.Uuid
+  notes      String?
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, job_id])
+  @@index([user_id])
+  @@index([job_id])
+  @@map("saved_jobs")
+}
+
+model Application {
+  id                String    @id @default(uuid()) @db.Uuid
+  user_id           String    
+  job_id            String    @db.Uuid
+  status            String    @default("interested")
+  application_date  DateTime? @db.Date
+  company_contact   String?
+  recruiter_name    String?
+  recruiter_email   String?
+  interview_date    DateTime? @db.Date
+  notes             String?
+  salary_expected   Int?
+  application_url   String?
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  job    Job                @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  events ApplicationEvent[]
+
+  @@index([user_id])
+  @@index([job_id])
+  @@index([status])
+  @@map("applications")
+}
+
+model ApplicationEvent {
+  id              String   @id @default(uuid()) @db.Uuid
+  application_id  String   @db.Uuid
+  event_type      String
+  event_date      DateTime @db.Date
+  notes           String?
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  application Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+
+  @@index([application_id])
+  @@map("application_events")
+}
+
+model SearchAlert {
+  id                   String    @id @default(uuid()) @db.Uuid
+  user_id              String    
+  job_search_id        String?   @db.Uuid
+  name                 String
+  filters              Json      @default("{}")
+  frequency            String    @default("daily")
+  minimum_match_score  Int?
+  is_active            Boolean   @default(true)
+  last_sent_at         DateTime? @db.Timestamptz()
+  created_at           DateTime  @default(now()) @db.Timestamptz()
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  job_search JobSearch? @relation(fields: [job_search_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@map("search_alerts")
+}
+
+model Notification {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String
+  type       String
+  title      String
+  message    String
+  data       Json?
+  read       Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  @@index([user_id])
+  @@index([read])
+  @@map("notifications")
+}
+
+model Conversation {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String
+  title      String?
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  messages Message[]
+
+  @@index([user_id])
+  @@map("conversations")
+}
+
+model Message {
+  id              String   @id @default(uuid()) @db.Uuid
+  conversation_id String   @db.Uuid
+  role            String
+  content         String
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id])
+  @@map("messages")
+}
+
+model GeneratedDocument {
+  id                   String   @id @default(uuid()) @db.Uuid
+  user_id              String
+  document_type        String
+  job_id               String?  @db.Uuid
+  candidate_profile_id String?  @db.Uuid
+  title                String
+  content              String
+  created_at           DateTime @default(now()) @db.Timestamptz()
+
+  job       Job?              @relation(fields: [job_id], references: [id], onDelete: SetNull)
+  candidate CandidateProfile? @relation(fields: [candidate_profile_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@map("generated_documents")
+}
+
+model UserSetting {
+  id                    String   @id @default(uuid()) @db.Uuid
+  user_id               String   @unique 
+  theme                 String   @default("system")
+  email_notifications   Boolean  @default(true)
+  in_app_notifications  Boolean  @default(true)
+  search_alerts         Boolean  @default(true)
+  resume_visibility     String   @default("private")
+  ai_data_processing    Boolean  @default(true)
+  created_at            DateTime @default(now()) @db.Timestamptz()
+  updated_at            DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("user_settings")
+}
+
+model AdminAuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  admin_id      String
+  action        String
+  resource_type String
+  resource_id   String?  @db.Uuid
+  details       Json?
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  @@index([admin_id])
+  @@map("admin_audit_logs")
+}
+
+model ProviderSyncLog {
+  id              String    @id @default(uuid()) @db.Uuid
+  provider_id     String    @db.Uuid
+  sync_type       String
+  status          String
+  jobs_discovered Int       @default(0)
+  jobs_updated    Int       @default(0)
+  errors          Int       @default(0)
+  error_details   Json?
+  started_at      DateTime  @default(now()) @db.Timestamptz()
+  completed_at    DateTime? @db.Timestamptz()
+
+  provider JobSource @relation(fields: [provider_id], references: [id], onDelete: Cascade)
+
+  @@index([provider_id])
+  @@map("provider_sync_logs")
+}
