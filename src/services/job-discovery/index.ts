@@ -94,11 +94,76 @@ export async function discoverJobs(
 
 const norm = (s?: string | null) => (s ?? "").toLowerCase();
 
+/** Canonicalize employment types across provider vocabularies. */
+export function normEmploymentType(t?: string | null): string {
+  const v = norm(t).replace(/[\s_]+/g, "-");
+  if (!v) return "";
+  if (v.includes("full") || v.includes("permanent")) return "full-time";
+  if (v.includes("part")) return "part-time";
+  if (v.includes("contract")) return "contract";
+  if (v.includes("freelance") || v.includes("consult")) return "freelance";
+  if (v.includes("intern")) return "internship";
+  if (v.includes("temp")) return "temporary";
+  return v;
+}
+
+/** Canonicalize remote status values. */
+export function normRemoteStatus(s?: string | null): string {
+  const v = norm(s).replace(/[\s_]+/g, "-");
+  if (!v) return "";
+  if (v.includes("remote") || v.includes("wfh") || v.includes("work-from-home"))
+    return "remote";
+  if (v.includes("hybrid")) return "hybrid";
+  if (
+    v.includes("on-site") ||
+    v.includes("onsite") ||
+    v.includes("office") ||
+    v.includes("onprem")
+  )
+    return "on-site";
+  return v;
+}
+
+/** Canonicalize experience levels (providers emit coarser vocabularies). */
+export function normExperienceLevel(l?: string | null): string {
+  const v = norm(l).replace(/[\s_]+/g, "-");
+  if (!v) return "";
+  if (v.includes("executive") || v.includes("director") || v.includes("vp") || v.includes("head"))
+    return "director";
+  if (v.includes("principal")) return "principal";
+  if (v.includes("lead") || v.includes("staff")) return "lead";
+  if (v.includes("senior") || v.includes("sr")) return "senior";
+  if (v.includes("mid") || v.includes("middle")) return "mid";
+  if (v.includes("junior") || v.includes("jr")) return "junior";
+  if (v.includes("entry") || v.includes("associate") || v.includes("graduate")) return "entry";
+  if (v.includes("intern")) return "internship";
+  return v;
+}
+
+/** Normalize a filter value the same way as job values for comparison. */
+function normFilterValue(kind: "employment" | "remote" | "experience", v: string): string {
+  if (kind === "employment") return normEmploymentType(v);
+  if (kind === "remote") return normRemoteStatus(v);
+  return normExperienceLevel(v);
+}
+
 export function applyFilters(
   jobs: ProviderJob[],
   filters?: JobSearchFilters,
 ): ProviderJob[] {
   if (!filters) return jobs;
+
+  // Pre-normalize enum filter lists once
+  const empFilters = filters.employment_type?.map((v) =>
+    normFilterValue("employment", v),
+  );
+  const remoteFilters = filters.remote_status?.map((v) =>
+    normFilterValue("remote", v),
+  );
+  const expFilters = filters.experience_level?.map((v) =>
+    normFilterValue("experience", v),
+  );
+
   return jobs.filter((j) => {
     const text = `${j.title} ${j.company} ${j.description}`.toLowerCase();
 
@@ -114,7 +179,7 @@ export function applyFilters(
       return false;
     if (filters.country && !norm(j.country).includes(norm(filters.country))) {
       // don't hard-exclude remote jobs with unknown country
-      if (j.remote_status !== "remote") return false;
+      if (normRemoteStatus(j.remote_status) !== "remote") return false;
     }
     if (
       filters.keywords &&
@@ -131,24 +196,19 @@ export function applyFilters(
     if (filters.industry && !text.includes(filters.industry.toLowerCase()))
       return false;
 
-    if (
-      filters.employment_type?.length &&
-      j.employment_type &&
-      !filters.employment_type.includes(j.employment_type)
-    )
-      return false;
-    if (
-      filters.remote_status?.length &&
-      j.remote_status &&
-      !filters.remote_status.includes(j.remote_status)
-    )
-      return false;
-    if (
-      filters.experience_level?.length &&
-      j.experience_level &&
-      !filters.experience_level.includes(j.experience_level)
-    )
-      return false;
+    if (empFilters?.length && j.employment_type) {
+      const jt = normEmploymentType(j.employment_type);
+      // Exclude only when the job's type is known and doesn't match
+      if (jt && !empFilters.includes(jt)) return false;
+    }
+    if (remoteFilters?.length && j.remote_status) {
+      const jr = normRemoteStatus(j.remote_status);
+      if (jr && !remoteFilters.includes(jr)) return false;
+    }
+    if (expFilters?.length && j.experience_level) {
+      const je = normExperienceLevel(j.experience_level);
+      if (je && !expFilters.includes(je)) return false;
+    }
 
     if (filters.salary_min != null) {
       const max = j.salary_max ?? j.salary_min;
@@ -174,7 +234,8 @@ export function applyFilters(
         (Date.now() - new Date(j.published_at).getTime()) / 86400000;
       if (age > filters.max_age_days) return false;
     }
-    if (filters.worldwide_remote && j.remote_status !== "remote") return false;
+    if (filters.worldwide_remote && normRemoteStatus(j.remote_status) !== "remote")
+      return false;
 
     return true;
   });

@@ -1,30 +1,31 @@
 "use client";
 
+import {
+    Loader2,
+    MessageSquare,
+    Plus,
+    Send,
+    User,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Loader2,
-  MessageSquare,
-  Plus,
-  Send,
-  User,
-} from "lucide-react";
 
+import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -324,9 +325,9 @@ export default function AssistantPage() {
                       }`}
                     >
                       <div
-                        className={`max-w-[85%] rounded-lg px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                        className={`max-w-[85%] rounded-lg px-4 py-2.5 text-sm ${
                           msg.role === "user"
-                            ? "bg-primary text-primary-foreground"
+                            ? "bg-primary text-primary-foreground whitespace-pre-wrap"
                             : "bg-card border"
                         }`}
                       >
@@ -338,7 +339,11 @@ export default function AssistantPage() {
                           )}
                           {msg.role === "user" ? "You" : "Assistant"}
                         </div>
-                        {msg.content}
+                        {msg.role === "user" ? (
+                          msg.content
+                        ) : (
+                          <MarkdownText text={msg.content} />
+                        )}
                       </div>
                     </div>
                   ))}

@@ -41,7 +41,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 
 const EMPLOYMENT_TYPES = [
   "full-time",
@@ -100,7 +100,6 @@ interface FilterState {
   salary_min: string;
   salary_max: string;
   salary_currency: string;
-  date_posted: string;
   max_age_days: string;
 }
 
@@ -118,7 +117,6 @@ const EMPTY_FILTERS: FilterState = {
   salary_min: "",
   salary_max: "",
   salary_currency: "",
-  date_posted: "",
   max_age_days: "",
 };
 
@@ -139,8 +137,8 @@ function buildFilters(f: FilterState): JobSearchFilters {
   if (!Number.isNaN(min) && min >= 0) filters.salary_min = min;
   if (!Number.isNaN(max) && max >= 0) filters.salary_max = max;
   if (f.salary_currency) filters.salary_currency = f.salary_currency;
-  if (f.date_posted) filters.date_posted = f.date_posted;
-  if (f.max_age_days) filters.max_age_days = parseInt(f.max_age_days, 10);
+  const ageDays = parseInt(f.max_age_days, 10);
+  if (!Number.isNaN(ageDays) && ageDays > 0) filters.max_age_days = ageDays;
   return filters;
 }
 
@@ -157,227 +155,371 @@ function capitalize(s: string) {
     .join(" ");
 }
 
+function FilterSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <fieldset className="space-y-3">
+      <legend className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </legend>
+      {children}
+    </fieldset>
+  );
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <Badge variant="secondary" className="gap-1 pr-1 font-normal">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+        aria-label={`Remove ${label} filter`}
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </Badge>
+  );
+}
+
+const DATE_OPTIONS = [
+  { value: "", label: "Any time" },
+  { value: "1", label: "Past 24 hours" },
+  { value: "3", label: "Past 3 days" },
+  { value: "7", label: "Past week" },
+  { value: "14", label: "Past 2 weeks" },
+  { value: "30", label: "Past month" },
+];
+
 function FilterPanel({
   filters,
   onChange,
   onClear,
+  onApply,
   className,
 }: {
   filters: FilterState;
   onChange: (next: FilterState) => void;
   onClear: () => void;
+  onApply?: () => void;
   className?: string;
 }) {
   const set = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
     onChange({ ...filters, [key]: value });
 
+  // Build removable chips for active filters
+  const chips: { label: string; clear: () => void }[] = [];
+  const textChips: [keyof FilterState, string][] = [
+    ["job_title", "Title"],
+    ["keywords", "Keywords"],
+    ["technology", "Tech"],
+    ["skill", "Skill"],
+    ["company", "Company"],
+    ["location", "Location"],
+    ["country", "Country"],
+  ];
+  for (const [key, label] of textChips) {
+    const v = filters[key];
+    if (typeof v === "string" && v.trim()) {
+      chips.push({
+        label: `${label}: ${v.trim()}`,
+        clear: () => set(key, "" as never),
+      });
+    }
+  }
+  for (const [key, label] of [
+    ["employment_type", "Type"],
+    ["remote_status", "Remote"],
+    ["experience_level", "Level"],
+  ] as [keyof FilterState, string][]) {
+    const arr = filters[key];
+    if (Array.isArray(arr) && arr.length) {
+      for (const v of arr) {
+        chips.push({
+          label: `${label}: ${capitalize(v)}`,
+          clear: () =>
+            set(key, arr.filter((x) => x !== v) as never),
+        });
+      }
+    }
+  }
+  if (filters.salary_min || filters.salary_max || filters.salary_currency) {
+    const parts = [
+      filters.salary_min && `min ${filters.salary_currency || ""} ${filters.salary_min}`.trim(),
+      filters.salary_max && `max ${filters.salary_currency || ""} ${filters.salary_max}`.trim(),
+    ].filter(Boolean);
+    chips.push({
+      label: `Salary: ${parts.join(" · ")}`,
+      clear: () =>
+        onChange({ ...filters, salary_min: "", salary_max: "", salary_currency: "" }),
+    });
+  }
+  if (filters.max_age_days) {
+    chips.push({
+      label: `Posted: ${DATE_OPTIONS.find((d) => d.value === filters.max_age_days)?.label ?? filters.max_age_days}`,
+      clear: () => set("max_age_days", ""),
+    });
+  }
+
+  const activeCount = chips.length;
+
   return (
     <div className={cn("space-y-5", className)}>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="f-job-title">Job title</Label>
-          <Input
-            id="f-job-title"
-            placeholder="e.g. Frontend Developer"
-            value={filters.job_title}
-            onChange={(e) => set("job_title", e.target.value)}
-          />
+      {/* Active filter chips */}
+      {activeCount > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((c, i) => (
+            <FilterChip key={i} label={c.label} onRemove={c.clear} />
+          ))}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="f-keywords">Keywords</Label>
-          <Input
-            id="f-keywords"
-            placeholder="e.g. react, typescript"
-            value={filters.keywords}
-            onChange={(e) => set("keywords", e.target.value)}
-          />
+      )}
+
+      <FilterSection title="Basics">
+        <div className="grid grid-cols-1 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="f-job-title">Job title</Label>
+            <Input
+              id="f-job-title"
+              placeholder="e.g. Frontend Developer"
+              value={filters.job_title}
+              onChange={(e) => set("job_title", e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="f-keywords">Keywords</Label>
+            <Input
+              id="f-keywords"
+              placeholder="e.g. react, typescript"
+              value={filters.keywords}
+              onChange={(e) => set("keywords", e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="f-technology">Technology</Label>
+              <Input
+                id="f-technology"
+                placeholder="e.g. Next.js"
+                value={filters.technology}
+                onChange={(e) => set("technology", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="f-skill">Skill</Label>
+              <Input
+                id="f-skill"
+                placeholder="e.g. GraphQL"
+                value={filters.skill}
+                onChange={(e) => set("skill", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="f-company">Company</Label>
+            <Input
+              id="f-company"
+              placeholder="e.g. Acme Corp"
+              value={filters.company}
+              onChange={(e) => set("company", e.target.value)}
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="f-technology">Technology</Label>
-          <Input
-            id="f-technology"
-            placeholder="e.g. Next.js, Tailwind"
-            value={filters.technology}
-            onChange={(e) => set("technology", e.target.value)}
-          />
+      </FilterSection>
+
+      <FilterSection title="Location & Freshness">
+        <div className="grid grid-cols-1 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="f-location">Location</Label>
+            <Input
+              id="f-location"
+              placeholder="e.g. Lagos, Berlin"
+              value={filters.location}
+              onChange={(e) => set("location", e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="f-country">Country</Label>
+              <Input
+                id="f-country"
+                placeholder="e.g. Nigeria"
+                value={filters.country}
+                onChange={(e) => set("country", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date posted</Label>
+              <Select
+                value={filters.max_age_days || "any"}
+                onValueChange={(v) => set("max_age_days", v === "any" ? "" : v)}
+              >
+                <SelectTrigger aria-label="Date posted">
+                  <SelectValue placeholder="Any time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_OPTIONS.map((d) => (
+                    <SelectItem key={d.value || "any"} value={d.value || "any"}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="f-skill">Skill</Label>
-          <Input
-            id="f-skill"
-            placeholder="e.g. GraphQL"
-            value={filters.skill}
-            onChange={(e) => set("skill", e.target.value)}
-          />
+      </FilterSection>
+
+      <FilterSection title="Work type">
+        <div className="grid grid-cols-1 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Employment type</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {EMPLOYMENT_TYPES.map((t) => {
+                const active = filters.employment_type.includes(t);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() =>
+                      set("employment_type", toggle(filters.employment_type, t))
+                    }
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                    )}
+                  >
+                    {capitalize(t)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Work arrangement</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {REMOTE_STATUSES.map((r) => {
+                const active = filters.remote_status.includes(r);
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() =>
+                      set("remote_status", toggle(filters.remote_status, r))
+                    }
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                    )}
+                  >
+                    {capitalize(r)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Experience level</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {EXPERIENCE_LEVELS.map((l) => {
+                const active = filters.experience_level.includes(l);
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() =>
+                      set("experience_level", toggle(filters.experience_level, l))
+                    }
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                    )}
+                  >
+                    {capitalize(l)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="f-company">Company</Label>
-          <Input
-            id="f-company"
-            placeholder="e.g. Acme Corp"
-            value={filters.company}
-            onChange={(e) => set("company", e.target.value)}
-          />
+      </FilterSection>
+
+      <FilterSection title="Compensation">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="f-salary-min" className="text-xs">Min</Label>
+            <Input
+              id="f-salary-min"
+              type="number"
+              min={0}
+              placeholder="80k"
+              value={filters.salary_min}
+              onChange={(e) => set("salary_min", e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="f-salary-max" className="text-xs">Max</Label>
+            <Input
+              id="f-salary-max"
+              type="number"
+              min={0}
+              placeholder="150k"
+              value={filters.salary_max}
+              onChange={(e) => set("salary_max", e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="f-currency" className="text-xs">Currency</Label>
+            <Select
+              value={filters.salary_currency || "any"}
+              onValueChange={(v) => set("salary_currency", v === "any" ? "" : v)}
+            >
+              <SelectTrigger id="f-currency" aria-label="Salary currency" className="h-9">
+                <SelectValue placeholder="Any" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any</SelectItem>
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="f-location">Location</Label>
-          <Input
-            id="f-location"
-            placeholder="e.g. Lagos, Remote"
-            value={filters.location}
-            onChange={(e) => set("location", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="f-country">Country</Label>
-          <Input
-            id="f-country"
-            placeholder="e.g. Nigeria"
-            value={filters.country}
-            onChange={(e) => set("country", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Date posted</Label>
-          <Select
-            value={filters.date_posted || "any"}
-            onValueChange={(v) => set("date_posted", v === "any" ? "" : v)}
+      </FilterSection>
+
+      <div className="flex gap-2">
+        {onApply && (
+          <Button size="sm" className="flex-1" onClick={onApply}>
+            <Search className="mr-1 h-3.5 w-3.5" />
+            Apply filters
+          </Button>
+        )}
+        {activeCount > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClear}
+            className="text-muted-foreground"
           >
-            <SelectTrigger aria-label="Date posted">
-              <SelectValue placeholder="Any time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any time</SelectItem>
-              <SelectItem value="24h">Last 24 hours</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Job freshness</Label>
-          <Select
-            value={filters.max_age_days || "any"}
-            onValueChange={(v) => set("max_age_days", v === "any" ? "" : v)}
-          >
-            <SelectTrigger aria-label="Job freshness">
-              <SelectValue placeholder="Any age" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any age</SelectItem>
-              <SelectItem value="1">Last 24 hours</SelectItem>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="14">Last 14 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            <X className="mr-1 h-4 w-4" />
+            Clear
+          </Button>
+        )}
       </div>
-
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Employment type</legend>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {EMPLOYMENT_TYPES.map((t) => (
-            <label key={t} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={filters.employment_type.includes(t)}
-                onCheckedChange={() =>
-                  set("employment_type", toggle(filters.employment_type, t))
-                }
-              />
-              {capitalize(t)}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Work arrangement</legend>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {REMOTE_STATUSES.map((r) => (
-            <label key={r} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={filters.remote_status.includes(r)}
-                onCheckedChange={() =>
-                  set("remote_status", toggle(filters.remote_status, r))
-                }
-              />
-              {capitalize(r)}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Experience level</legend>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {EXPERIENCE_LEVELS.map((l) => (
-            <label key={l} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={filters.experience_level.includes(l)}
-                onCheckedChange={() =>
-                  set("experience_level", toggle(filters.experience_level, l))
-                }
-              />
-              {capitalize(l)}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="f-salary-min">Salary min</Label>
-          <Input
-            id="f-salary-min"
-            type="number"
-            min={0}
-            placeholder="80000"
-            value={filters.salary_min}
-            onChange={(e) => set("salary_min", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="f-salary-max">Salary max</Label>
-          <Input
-            id="f-salary-max"
-            type="number"
-            min={0}
-            placeholder="150000"
-            value={filters.salary_max}
-            onChange={(e) => set("salary_max", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="f-currency">Currency</Label>
-          <Select
-            value={filters.salary_currency || "any"}
-            onValueChange={(v) => set("salary_currency", v === "any" ? "" : v)}
-          >
-            <SelectTrigger id="f-currency" aria-label="Salary currency">
-              <SelectValue placeholder="Any" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any</SelectItem>
-              {CURRENCIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onClear}
-        className="text-muted-foreground"
-      >
-        <X className="mr-1 h-4 w-4" />
-        Clear filters
-      </Button>
     </div>
   );
 }
@@ -658,6 +800,7 @@ function JobSearchPageInner() {
                 filters={filters}
                 onChange={setFilters}
                 onClear={() => setFilters(EMPTY_FILTERS)}
+                onApply={() => void runSearch(1)}
               />
             </CardContent>
           </Card>
@@ -668,6 +811,10 @@ function JobSearchPageInner() {
                   filters={filters}
                   onChange={setFilters}
                   onClear={() => setFilters(EMPTY_FILTERS)}
+                  onApply={() => {
+                    setFiltersOpen(false);
+                    void runSearch(1);
+                  }}
                 />
               </CardContent>
             </Card>

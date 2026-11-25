@@ -1,34 +1,35 @@
 "use client";
 
 import {
-  Brain,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Loader2,
-  MapPin,
-  Sparkles,
+    Brain,
+    ChevronDown,
+    ChevronUp,
+    ExternalLink,
+    Loader2,
+    MapPin,
+    Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { MarkdownText } from "@/components/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
@@ -358,9 +359,7 @@ export default function MatchesPage() {
               <Skeleton className="h-4 w-full" />
             </div>
           ) : (
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {aiContent}
-            </div>
+            <MarkdownText text={aiContent ?? ""} className="leading-relaxed" />
           )}
         </DialogContent>
       </Dialog>

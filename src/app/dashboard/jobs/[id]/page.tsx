@@ -7,6 +7,7 @@ import {
     relativeTime,
 } from "@/components/jobs/job-card";
 import { JobDescription } from "@/components/jobs/job-description";
+import { MarkdownText } from "@/components/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -724,9 +725,7 @@ export default function JobDetailPage({
                 <Skeleton className="h-4 w-2/3" />
               </div>
             ) : (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                {matchContent}
-              </p>
+              <MarkdownText text={matchContent ?? ""} className="leading-relaxed" />
             )}
           </CardContent>
         </Card>
@@ -760,9 +759,7 @@ export default function JobDetailPage({
                     Copy
                   </Button>
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {interviewPrepContent}
-                </p>
+                <MarkdownText text={interviewPrepContent ?? ""} className="leading-relaxed" />
               </div>
             )}
           </CardContent>
@@ -959,9 +956,7 @@ export default function JobDetailPage({
                   </Button>
                 </div>
                 <div className="max-h-[50vh] overflow-y-auto rounded-md border bg-muted/50 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {letterContent}
-                  </p>
+                  <MarkdownText text={letterContent} className="leading-relaxed" />
                 </div>
               </div>
             ) : letterLoading ? (

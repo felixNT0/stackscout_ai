@@ -1,5 +1,6 @@
 "use client";
 
+import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -360,8 +361,8 @@ function ResultDisplay({
                                     <Copy className="h-3 w-3" />
                                 </Button>
                             </div>
-                            <div className="rounded-lg bg-muted p-4 text-sm whitespace-pre-wrap">
-                                {value}
+                            <div className="rounded-lg bg-muted p-4 text-sm">
+                                <MarkdownText text={value} />
                             </div>
                         </div>
                     );
