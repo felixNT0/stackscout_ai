@@ -75,7 +75,29 @@ export async function chatJson<T>(opts: {
     content = res.choices[0]?.message?.content;
   }
   if (!content) throw new Error("Empty AI response");
-  return JSON.parse(content) as T;
+  return parseJsonContent<T>(content);
+}
+
+/**
+ * Parse AI JSON output tolerantly — strips markdown fences and extracts
+ * the first {...} block when models add commentary around the JSON.
+ */
+function parseJsonContent<T>(content: string): T {
+  let text = content.trim();
+  // Strip ```json ... ``` fences
+  const fence = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(text);
+  if (fence) text = fence[1].trim();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // Extract outermost JSON object/array from surrounding prose
+    const start = text.search(/[[{]/);
+    const end = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+    if (start >= 0 && end > start) {
+      return JSON.parse(text.slice(start, end + 1)) as T;
+    }
+    throw new Error("AI returned invalid JSON");
+  }
 }
 
 export async function chatText(opts: {

@@ -89,20 +89,32 @@ export default function AIToolsPage() {
             if (targetRoles) body.target_roles = targetRoles.split(",").map((r) => r.trim());
             if (existingProjects) body.existing_projects = existingProjects.split(",").map((p) => p.trim());
 
-            const res = await fetch("/api/ai/tools", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
+            // AI calls can take 30-60s on large structured outputs — allow up to 120s
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 120_000);
+            let res: Response;
+            try {
+                res = await fetch("/api/ai/tools", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                    signal: controller.signal,
+                });
+            } finally {
+                clearTimeout(timer);
+            }
 
             const data = await res.json();
             if (!res.ok) throw new Error(data.error ?? "Failed");
 
             setResult(data.data.result);
         } catch (err) {
+            const isTimeout = err instanceof DOMException && err.name === "AbortError";
             toast({
-                title: "Tool failed",
-                description: err instanceof Error ? err.message : "Please try again.",
+                title: isTimeout ? "Request timed out" : "Tool failed",
+                description: isTimeout
+                    ? "The AI took too long to respond. Try again — simpler inputs are faster."
+                    : err instanceof Error ? err.message : "Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -319,7 +331,7 @@ export default function AIToolsPage() {
                             {loading ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Analyzing...
+                                    AI is thinking… (can take up to a minute)
                                 </>
                             ) : (
                                 "Run Analysis"
@@ -368,6 +380,30 @@ function ResultDisplay({
                     );
                 }
 
+                if (typeof value === "number" || typeof value === "boolean") {
+                    return (
+                        <div key={key} className="space-y-1">
+                            <Label className="font-semibold">{label}</Label>
+                            <div className="rounded-lg bg-muted px-4 py-3">
+                                {typeof value === "boolean" ? (
+                                    <span className={value ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                                        {value ? "Yes" : "No"}
+                                    </span>
+                                ) : Number.isInteger(value) && value <= 100 && value >= 0 ? (
+                                    <span className={`text-3xl font-bold ${
+                                        value >= 70 ? "text-green-600" : value >= 40 ? "text-amber-600" : "text-red-600"
+                                    }`}>
+                                        {value}
+                                        <span className="text-sm font-normal text-muted-foreground">/100</span>
+                                    </span>
+                                ) : (
+                                    <span className="text-lg font-semibold">{value}</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                }
+
                 if (Array.isArray(value)) {
                     return (
                         <div key={key} className="space-y-2">
@@ -384,14 +420,37 @@ function ResultDisplay({
                 }
 
                 if (typeof value === "object" && value !== null) {
+                    const obj = value as Record<string, unknown>;
+                    const isFlat = Object.values(obj).every(
+                        (v) => v === null || ["string", "number", "boolean"].includes(typeof v),
+                    );
                     return (
                         <div key={key} className="space-y-2">
                             <Label className="font-semibold">{label}</Label>
-                            <div className="rounded-lg bg-muted p-4 text-sm">
-                                <pre className="whitespace-pre-wrap">
-                                    {JSON.stringify(value, null, 2)}
-                                </pre>
-                            </div>
+                            {isFlat ? (
+                                <div className="rounded-lg bg-muted divide-y">
+                                    {Object.entries(obj).map(([k, v]) => (
+                                        <div key={k} className="flex items-center justify-between px-4 py-2 text-sm">
+                                            <span className="text-muted-foreground capitalize">
+                                                {k.replace(/_/g, " ")}
+                                            </span>
+                                            <span className="font-medium">
+                                                {typeof v === "number" && Number.isInteger(v) && v <= 100 && v >= 0 ? (
+                                                    <span className={v >= 70 ? "text-green-600" : v >= 40 ? "text-amber-600" : "text-red-600"}>
+                                                        {v}/100
+                                                    </span>
+                                                ) : String(v ?? "—")}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-lg bg-muted p-4 text-sm">
+                                    <pre className="whitespace-pre-wrap">
+                                        {JSON.stringify(value, null, 2)}
+                                    </pre>
+                                </div>
+                            )}
                         </div>
                     );
                 }
