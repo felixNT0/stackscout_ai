@@ -4,7 +4,7 @@ import type {
   ProviderSearchParams,
   ProviderSearchResult,
 } from "../types";
-import { fetchJson } from "../http";
+import { fetchJson, stripHtml } from "../http";
 
 interface UsaJob {
   MatchedObjectId: string;
@@ -68,7 +68,7 @@ export class UsaJobsProvider implements JobProvider {
           external_id: j.MatchedObjectId,
           title: d.PositionTitle ?? "Unknown",
           company: d.OrganizationName ?? "US Government",
-          description: d.PositionFormattedDescription?.slice(0, 5000) ?? d.UserArea?.Details?.JobSummary ?? "",
+          description: stripHtml(d.PositionFormattedDescription ?? d.UserArea?.Details?.JobSummary ?? "").slice(0, 5000),
           location: d.PositionLocationDisplay ?? null,
           remote_status: null,
           employment_type: "full-time",

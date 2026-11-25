@@ -6,6 +6,7 @@ import {
     formatSalary,
     relativeTime,
 } from "@/components/jobs/job-card";
+import { JobDescription } from "@/components/jobs/job-description";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -775,9 +776,7 @@ export default function JobDetailPage({
         </CardHeader>
         <CardContent>
           {job.description ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-              {job.description}
-            </p>
+            <JobDescription text={job.description} />
           ) : (
             <p className="text-sm text-muted-foreground">
               No description provided.

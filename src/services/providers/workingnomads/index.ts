@@ -1,4 +1,4 @@
-import { fetchJson } from "../http";
+import { fetchJson, stripHtml } from "../http";
 import type {
   JobProvider,
   ProviderJob,
@@ -35,7 +35,7 @@ export class WorkingNomadsProvider implements JobProvider {
           external_id: j.url,
           title: j.title,
           company: j.company_name ?? "Unknown",
-          description: j.description?.slice(0, 5000) ?? "",
+          description: stripHtml(j.description ?? "").slice(0, 5000),
           location: j.location ?? "Remote",
           remote_status: "remote",
           employment_type: null,

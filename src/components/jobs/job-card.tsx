@@ -1,25 +1,26 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { descriptionToPlainText } from "@/components/jobs/job-description";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
 } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import type { Job } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import {
-  Bookmark,
-  Briefcase,
-  Building2,
-  Clock,
-  ExternalLink,
-  Loader2,
-  MapPin,
+    Bookmark,
+    Briefcase,
+    Building2,
+    Clock,
+    ExternalLink,
+    Loader2,
+    MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -282,7 +283,7 @@ export function JobCard({ job, matchScore, variant = "card" }: JobCardProps) {
             </div>
             {job.description && (
               <p className="line-clamp-2 text-sm text-muted-foreground">
-                {job.description}
+                {descriptionToPlainText(job.description)}
               </p>
             )}
             {skillsRow}
@@ -332,7 +333,7 @@ export function JobCard({ job, matchScore, variant = "card" }: JobCardProps) {
       <CardContent className="flex-1 space-y-3 pb-3">
         {job.description && (
           <p className="line-clamp-3 text-sm text-muted-foreground">
-            {job.description}
+            {descriptionToPlainText(job.description)}
           </p>
         )}
         {skillsRow}

@@ -4,7 +4,7 @@ import type {
   ProviderSearchParams,
   ProviderSearchResult,
 } from "../types";
-import { fetchJson } from "../http";
+import { fetchJson, stripHtml } from "../http";
 
 interface DiceJob {
   id: string;
@@ -55,7 +55,7 @@ export class DiceProvider implements JobProvider {
         title: j.title,
         company: j.company?.name ?? "Unknown",
         company_logo: j.company?.logo ?? null,
-        description: j.description?.slice(0, 5000) ?? "",
+        description: stripHtml(j.description ?? "").slice(0, 5000),
         location: j.location ? `${j.location.city}, ${j.location.state}` : null,
         remote_status: null,
         employment_type: j.employmentType?.toLowerCase() ?? null,

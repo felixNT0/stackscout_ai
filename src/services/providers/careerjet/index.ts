@@ -4,7 +4,7 @@ import type {
   ProviderSearchParams,
   ProviderSearchResult,
 } from "../types";
-import { fetchJson } from "../http";
+import { fetchJson, stripHtml } from "../http";
 
 interface CareerjetJob {
   url: string;
@@ -44,7 +44,7 @@ export class CareerjetProvider implements JobProvider {
         external_id: j.url,
         title: j.title,
         company: j.company ?? "Unknown",
-        description: j.description?.slice(0, 5000) ?? "",
+        description: stripHtml(j.description ?? "").slice(0, 5000),
         location: j.locations ?? null,
         remote_status: null,
         employment_type: null,

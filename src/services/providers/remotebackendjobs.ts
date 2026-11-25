@@ -1,4 +1,4 @@
-import { fetchWithRetry } from "./http";
+import { fetchWithRetry, stripHtml } from "./http";
 import type {
     JobProvider,
     ProviderJob,
@@ -75,7 +75,7 @@ export class RemoteBackendJobsProvider implements JobProvider {
         company: job.company,
         location: job.location || "Remote",
         country: inferCountry(job.location),
-        description: job.description?.slice(0, 5000) ?? "",
+        description: stripHtml(job.description ?? "").slice(0, 5000),
         application_url: job.apply_url,
         source_name: "remote_backend_jobs",
         employment_type: "full-time",

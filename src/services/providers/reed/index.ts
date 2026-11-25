@@ -4,7 +4,7 @@ import type {
   ProviderSearchParams,
   ProviderSearchResult,
 } from "../types";
-import { fetchJson } from "../http";
+import { fetchJson, stripHtml } from "../http";
 
 interface ReedJob {
   jobId: number;
@@ -54,7 +54,7 @@ export class ReedProvider implements JobProvider {
         external_id: String(j.jobId),
         title: j.jobTitle,
         company: j.employerName ?? "Unknown",
-        description: j.jobDescription?.slice(0, 5000) ?? "",
+        description: stripHtml(j.jobDescription ?? "").slice(0, 5000),
         location: j.locationName ?? null,
         remote_status: null,
         employment_type: j.contractType?.toLowerCase() ?? null,

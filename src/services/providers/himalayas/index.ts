@@ -4,7 +4,7 @@ import type {
   ProviderSearchParams,
   ProviderSearchResult,
 } from "../types";
-import { fetchJson } from "../http";
+import { fetchJson, stripHtml } from "../http";
 
 interface HimalayasJob {
   id: string;
@@ -39,7 +39,7 @@ export class HimalayasProvider implements JobProvider {
         external_id: j.id,
         title: j.title,
         company: j.company ?? "Unknown",
-        description: j.description?.slice(0, 5000) ?? "",
+        description: stripHtml(j.description ?? "").slice(0, 5000),
         location: j.location ?? null,
         remote_status: "remote",
         employment_type: j.type?.toLowerCase() ?? null,

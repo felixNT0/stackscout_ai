@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { MockProvider } from "@/services/providers/mock";
 import { AdzunaProvider } from "@/services/providers/adzuna";
+import { stripHtml } from "@/services/providers/http";
 import { JoobleProvider } from "@/services/providers/jooble";
 import { LeverProvider } from "@/services/providers/lever";
-import { stripHtml } from "@/services/providers/http";
+import { MockProvider } from "@/services/providers/mock";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const params = { query: "react developer", pageSize: 5 };
 
@@ -69,5 +69,20 @@ describe("LeverProvider", () => {
 describe("stripHtml", () => {
   it("removes tags and decodes entities", () => {
     expect(stripHtml("<p>Hello &amp; <b>world</b></p>")).toBe("Hello & world");
+  });
+
+  it("preserves paragraph and list structure", () => {
+    const html = "<h2>About</h2><p>First paragraph.</p><ul><li>Item one</li><li>Item two</li></ul><p>Second&nbsp;para.</p>";
+    const out = stripHtml(html);
+    expect(out).toContain("About");
+    expect(out).toContain("First paragraph.");
+    expect(out).toContain("• Item one");
+    expect(out).toContain("• Item two");
+    expect(out).toContain("Second para.");
+    expect(out).toContain("\n");
+  });
+
+  it("decodes numeric entities", () => {
+    expect(stripHtml("Tom &amp; Jerry &#8212; fun")).toContain("—");
   });
 });
