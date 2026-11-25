@@ -1,9 +1,10 @@
 import { inngest } from "@/inngest/client";
 import {
-  dailyDiscovery,
-  onDemandDiscovery,
-  processAlerts,
-  refreshJobStatus,
+    applicationFollowUpReminders,
+    dailyDiscovery,
+    onDemandDiscovery,
+    processAlerts,
+    refreshJobStatus,
 } from "@/inngest/functions";
 import { serve } from "inngest/next";
 
@@ -14,5 +15,6 @@ export const { GET, POST, PUT } = serve({
     onDemandDiscovery,
     refreshJobStatus,
     processAlerts,
+    applicationFollowUpReminders,
   ],
 });

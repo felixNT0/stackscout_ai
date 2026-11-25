@@ -1,10 +1,11 @@
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
-import { NextRequest } from "next/server";
+import { connection, NextRequest } from "next/server";
 
 /** List persisted matches for the user, joined with job data. */
 export async function GET(req: NextRequest) {
+  await connection();
   try {
     const user = await getCurrentUser();
     if (!user) return jsonError("Unauthorized", 401);

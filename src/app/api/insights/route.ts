@@ -1,10 +1,11 @@
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
-import type { NextRequest } from "next/server";
+import { connection, type NextRequest } from "next/server";
 
 /** Career insights: aggregate stats computed from the jobs table only. */
 export async function GET(req: NextRequest) {
+  await connection();
   try {
     const user = await getCurrentUser();
     if (!user) return jsonError("Unauthorized", 401);

@@ -1,48 +1,48 @@
 "use client";
 
 import {
-  formatEmploymentType,
-  formatExperienceLevel,
-  formatSalary,
-  relativeTime,
+    formatEmploymentType,
+    formatExperienceLevel,
+    formatSalary,
+    relativeTime,
 } from "@/components/jobs/job-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import type { Job } from "@/types";
 import {
-  ArrowLeft,
-  Bookmark,
-  Building2,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  Copy,
-  ExternalLink,
-  FileText,
-  Loader2,
-  MapPin,
-  Sparkles,
+    ArrowLeft,
+    Bookmark,
+    Building2,
+    CheckCircle2,
+    ChevronRight,
+    Clock,
+    Copy,
+    ExternalLink,
+    FileText,
+    Loader2,
+    MapPin,
+    Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
@@ -110,6 +110,20 @@ export default function JobDetailPage({
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchContent, setMatchContent] = useState<string | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
+
+  const [interviewPrepLoading, setInterviewPrepLoading] = useState(false);
+  const [interviewPrepContent, setInterviewPrepContent] = useState<string | null>(null);
+
+  const [autoApplyOpen, setAutoApplyOpen] = useState(false);
+  const [autoApplyLoading, setAutoApplyLoading] = useState(false);
+  const [autoApplyResult, setAutoApplyResult] = useState<{
+    applicationId: string;
+    channel: string;
+    hasCoverLetter: boolean;
+    hasTailoredResume: boolean;
+    hasResume: boolean;
+  } | null>(null);
+  const [autoApplySubmitting, setAutoApplySubmitting] = useState(false);
 
   const fetchJob = useCallback(async () => {
     setLoading(true);
@@ -338,6 +352,36 @@ export default function JobDetailPage({
     }
   }
 
+  async function generateInterviewPrep() {
+    if (!job) return;
+    setInterviewPrepLoading(true);
+    setInterviewPrepContent(null);
+    try {
+      const res = await fetch("/api/ai/documents?type=interview-prep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: job.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(
+          (body as { error?: string }).error ?? "Generation failed",
+        );
+      setInterviewPrepContent((body as { data: { content: string } }).data.content);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Please try again.";
+      toast({
+        title: "Interview prep failed",
+        description: msg.includes("analyze")
+          ? `${msg} — Go to Dashboard → My Resume and click 'Analyze'.`
+          : msg,
+        variant: "destructive",
+      });
+    } finally {
+      setInterviewPrepLoading(false);
+    }
+  }
+
   async function copyText(text: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -348,6 +392,76 @@ export default function JobDetailPage({
         description: "Please copy manually.",
         variant: "destructive",
       });
+    }
+  }
+
+  async function prepareAutoApply() {
+    if (!job) return;
+    setAutoApplyLoading(true);
+    setAutoApplyResult(null);
+    try {
+      const res = await fetch("/api/applications/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: job.id, tone: "professional" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(
+          (body as { error?: string }).error ?? "Failed to prepare application",
+        );
+      const data = (body as { data: { results: { application_id?: string; channel?: string; has_cover_letter?: boolean; has_tailored_resume?: boolean; success: boolean }[] } }).data;
+      const result = data.results[0];
+      if (!result?.success || !result.application_id) {
+        throw new Error("Application preparation failed");
+      }
+      setAutoApplyResult({
+        applicationId: result.application_id,
+        channel: result.channel ?? "manual",
+        hasCoverLetter: result.has_cover_letter ?? false,
+        hasTailoredResume: result.has_tailored_resume ?? false,
+        hasResume: true,
+      });
+      setAutoApplyOpen(true);
+    } catch (err) {
+      toast({
+        title: "Could not prepare application",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAutoApplyLoading(false);
+    }
+  }
+
+  async function submitAutoApply() {
+    if (!autoApplyResult) return;
+    setAutoApplySubmitting(true);
+    try {
+      const res = await fetch(`/api/applications/${autoApplyResult.applicationId}/submit`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(
+          (body as { error?: string }).error ?? "Submission failed",
+        );
+      const data = (body as { data: { success: boolean; message: string } }).data;
+      toast({
+        title: data.success ? "Application submitted!" : "Submission failed",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
+      });
+      setAutoApplyOpen(false);
+      setAutoApplyResult(null);
+    } catch (err) {
+      toast({
+        title: "Submission failed",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAutoApplySubmitting(false);
     }
   }
 
@@ -532,6 +646,18 @@ export default function JobDetailPage({
           Add to Applications
         </Button>
         <Button
+          variant="default"
+          onClick={() => void prepareAutoApply()}
+          disabled={autoApplyLoading}
+        >
+          {autoApplyLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
+          Auto-Apply
+        </Button>
+        <Button
           variant="outline"
           onClick={() => {
             setLetterDialogOpen(true);
@@ -552,6 +678,18 @@ export default function JobDetailPage({
             <Sparkles className="h-4 w-4" />
           )}
           AI Match Analysis
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => void generateInterviewPrep()}
+          disabled={interviewPrepLoading}
+        >
+          {interviewPrepLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileText className="h-4 w-4" />
+          )}
+          Interview Prep
         </Button>
       </div>
 
@@ -588,6 +726,43 @@ export default function JobDetailPage({
               <p className="whitespace-pre-wrap text-sm leading-relaxed">
                 {matchContent}
               </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Interview prep result */}
+      {(interviewPrepContent || interviewPrepLoading) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-primary" />
+              Interview Prep
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {interviewPrepLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void copyText(interviewPrepContent ?? "")}
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy
+                  </Button>
+                </div>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {interviewPrepContent}
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -815,6 +990,76 @@ export default function JobDetailPage({
             >
               {letterLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {letterContent ? "Regenerate" : "Generate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auto-apply review dialog */}
+      <Dialog open={autoApplyOpen} onOpenChange={setAutoApplyOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Review Auto-Application</DialogTitle>
+            <DialogDescription>
+              Review the application package before submitting.
+            </DialogDescription>
+          </DialogHeader>
+          {autoApplyResult && (
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Channel</span>
+                  <Badge variant="secondary" className="capitalize">
+                    {autoApplyResult.channel}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Cover letter</span>
+                  <span className="text-sm text-muted-foreground">
+                    {autoApplyResult.hasCoverLetter ? "ATS-optimized" : "Not available"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Resume</span>
+                  <span className="text-sm text-muted-foreground">
+                    {autoApplyResult.hasTailoredResume
+                      ? "ATS-tailored for this job"
+                      : autoApplyResult.hasResume
+                        ? "Original resume"
+                        : "Not found"}
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {autoApplyResult.channel === "greenhouse" &&
+                  "This will submit directly to Greenhouse."}
+                {autoApplyResult.channel === "lever" &&
+                  "This will submit directly to Lever."}
+                {autoApplyResult.channel === "email" &&
+                  "This will send an application email."}
+                {autoApplyResult.channel === "manual" &&
+                  "This job requires manual application. We'll open the application page."}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAutoApplyOpen(false)}
+              disabled={autoApplySubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void submitAutoApply()}
+              disabled={autoApplySubmitting}
+            >
+              {autoApplySubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {autoApplySubmitting ? "Submitting..." : "Submit Application"}
             </Button>
           </DialogFooter>
         </DialogContent>

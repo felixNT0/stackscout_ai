@@ -1,18 +1,19 @@
 import { loadAssistantContext } from "@/lib/ai/context";
 import {
-  analyzeMatchForUser,
-  generateCoverLetter,
-  generateProfessionalSummary,
-  tailorResume,
+    analyzeMatchForUser,
+    generateCoverLetter,
+    generateInterviewPrep,
+    generateProfessionalSummary,
+    tailorResume
 } from "@/lib/ai/documents";
 import { analyzeJobDescription } from "@/lib/ai/job-analysis";
 import { isAiConfigured } from "@/lib/ai/openai";
 import {
-  handleApiError,
-  jsonError,
-  jsonOk,
-  parseBody,
-  rateLimit,
+    handleApiError,
+    jsonError,
+    jsonOk,
+    parseBody,
+    rateLimit,
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
@@ -110,6 +111,35 @@ export async function POST(req: NextRequest) {
       const doc = await saveDocument(user.id, {
         document_type: "professional_summary",
         title: "Professional summary",
+        content,
+      });
+      return jsonOk({ document: doc, content });
+    }
+
+    if (kind === "interview-prep") {
+      const { job_id } = await parseBody(
+        req,
+        z.object({
+          job_id: z.string().uuid("Invalid job ID"),
+        }),
+      );
+      const job = await loadJob(job_id);
+      if (!job) return jsonError("Job not found", 404);
+      const analysis = await analyzeJobDescription(
+        job.title,
+        job.description ?? "",
+      ).catch(() => null);
+      const content = await generateInterviewPrep({
+        candidate: ctx.candidate ?? null,
+        jobTitle: job.title,
+        company: job.company,
+        jobAnalysis: analysis,
+        jobDescription: job.description,
+      });
+      const doc = await saveDocument(user.id, {
+        document_type: "interview_prep",
+        job_id: job.id,
+        title: `Interview prep — ${job.title} at ${job.company}`,
         content,
       });
       return jsonOk({ document: doc, content });

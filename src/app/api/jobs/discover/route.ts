@@ -1,11 +1,11 @@
 import { fallbackQueries, generateSearchQueries } from "@/lib/ai/job-analysis";
 import { isAiConfigured } from "@/lib/ai/openai";
 import {
-  handleApiError,
-  jsonError,
-  jsonOk,
-  parseBody,
-  rateLimit,
+    handleApiError,
+    jsonError,
+    jsonOk,
+    parseBody,
+    rateLimit,
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
@@ -85,9 +85,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Fetch fingerprints of jobs the user has already viewed
+    const seenFingerprints = await prisma.jobView
+      .findMany({
+        where: { user_id: user.id, fingerprint: { not: null } },
+        select: { fingerprint: true },
+      })
+      .then((rows) => new Set(rows.map((r) => r.fingerprint!)));
+
     // Fan out across providers for each query (bounded)
     const perQuery = Math.max(
-      5,
+      10,
       Math.floor(input.max_results_per_query / queries.length),
     );
     const outcomes = await Promise.all(
@@ -95,7 +103,7 @@ export async function POST(req: NextRequest) {
         discoverJobs({
           query: q,
           filters: input.filters,
-          pageSize: perQuery,
+          pageSize: perQuery * 2, // Fetch extra to allow filtering
         }),
       ),
     );
@@ -104,7 +112,29 @@ export async function POST(req: NextRequest) {
     const providerResults = outcomes.flatMap((o) => o.providerResults);
     const filtered = applyFilters(allJobs, input.filters);
     const sorted = sortJobs(filtered, "relevance");
-    const pageSlice = sorted.slice(0, input.max_results_per_query);
+
+    // Deprioritize seen jobs
+    const unseen = sorted.filter((j) => {
+      const fp = fingerprintId({
+        title: j.title,
+        company: j.company,
+        location: j.location,
+        application_url: j.application_url,
+      });
+      return !seenFingerprints.has(fp);
+    });
+    const seen = sorted.filter((j) => {
+      const fp = fingerprintId({
+        title: j.title,
+        company: j.company,
+        location: j.location,
+        application_url: j.application_url,
+      });
+      return seenFingerprints.has(fp);
+    });
+    const prioritized = [...unseen, ...seen];
+
+    const pageSlice = prioritized.slice(0, input.max_results_per_query);
     const persisted = await persistJobs(pageSlice).catch(
       () => [] as Awaited<ReturnType<typeof persistJobs>>,
     );

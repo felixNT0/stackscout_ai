@@ -149,7 +149,7 @@ export interface Job {
   last_verified_at: string | null
   expiration_date: string | null
   status: 'active' | 'expired' | 'closed' | 'suspicious'
-  raw_source_data: any
+  raw_source_data: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -193,6 +193,7 @@ export interface JobSearchFilters {
   salary_max?: number
   salary_currency?: string
   date_posted?: string
+  max_age_days?: number
   visa_sponsorship?: boolean
   worldwide_remote?: boolean
   relocation_assistance?: boolean
@@ -283,7 +284,7 @@ export interface Notification {
   type: 'job_discovery' | 'match_update' | 'application_reminder' | 'alert' | 'system'
   title: string
   message: string
-  data: any
+  data: Record<string, unknown>
   read: boolean
   created_at: string
 }
@@ -337,7 +338,7 @@ export interface AdminAuditLog {
   action: string
   resource_type: string
   resource_id: string | null
-  details: any
+  details: Record<string, unknown>
   created_at: string
 }
 
@@ -349,7 +350,7 @@ export interface ProviderSyncLog {
   jobs_discovered: number
   jobs_updated: number
   errors: number
-  error_details: any
+  error_details: Record<string, unknown>
   started_at: string
   completed_at: string | null
 }

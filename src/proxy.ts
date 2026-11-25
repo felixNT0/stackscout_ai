@@ -54,7 +54,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // Protect all API routes except public ones
-  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
+  if (
+    pathname.startsWith("/api/") &&
+    !pathname.startsWith("/api/auth/") &&
+    !pathname.startsWith("/api/health") &&
+    !pathname.startsWith("/api/inngest")
+  ) {
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

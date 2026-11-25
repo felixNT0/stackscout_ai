@@ -1,16 +1,17 @@
 "use client";
 
+import { useNotifications } from "@/lib/hooks/use-notifications";
 import { Bell, CheckCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
@@ -45,6 +46,7 @@ export function NotificationsBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState<number | null>(null);
+  const { notifications: sseNotifications, connected } = useNotifications();
 
   // Compute "now" after mount to avoid Date.now() during prerender
   useEffect(() => {
@@ -76,11 +78,32 @@ export function NotificationsBell() {
     [toast],
   );
 
+  // Sync SSE notifications with local state
+  useEffect(() => {
+    if (sseNotifications.length > 0) {
+      setNotifications((prev) => {
+        const existingIds = new Set(prev.map((n: AppNotification) => n.id));
+        const newNotifications = sseNotifications.filter((n: { id: string }) => !existingIds.has(n.id));
+        if (newNotifications.length > 0) {
+          return [...newNotifications.reverse(), ...prev];
+        }
+        return prev;
+      });
+      setUnreadCount((prev) => {
+        const unread = sseNotifications.filter((n: { read: boolean }) => !n.read).length;
+        return Math.max(prev, unread);
+      });
+    }
+  }, [sseNotifications]);
+
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(() => fetchNotifications(true), 60_000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    // Fallback polling every 2 minutes if SSE is not connected
+    const interval = connected ? null : setInterval(() => fetchNotifications(true), 120_000);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [fetchNotifications, connected]);
 
   const markRead = useCallback(
     async (ids?: string[], all = false) => {

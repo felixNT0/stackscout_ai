@@ -3,6 +3,8 @@ import type { JobSearchFilters } from "@/types";
 import { AdzunaProvider } from "../providers/adzuna";
 import { AiDiscoveryProvider } from "../providers/ai-discovery";
 import { ArbeitnowProvider } from "../providers/arbeitnow";
+import { AshbyProvider } from "../providers/ashby";
+import { BuiltInChicagoProvider } from "../providers/builtinchicago";
 import { CareerjetProvider } from "../providers/careerjet";
 import { DiceProvider } from "../providers/dice";
 import { GreenhouseProvider } from "../providers/greenhouse";
@@ -12,16 +14,20 @@ import { JoobleProvider } from "../providers/jooble";
 import { LeverProvider } from "../providers/lever";
 import { MockProvider } from "../providers/mock";
 import { ReedProvider } from "../providers/reed";
+import { RemoteBackendJobsProvider } from "../providers/remotebackendjobs";
 import { RemoteOkProvider } from "../providers/remoteok";
 import { RemotiveProvider } from "../providers/remotive";
+import { SimplyHiredProvider } from "../providers/simplyhired";
 import { TavilyProvider } from "../providers/tavily";
+import { TheMuseProvider } from "../providers/themuse";
 import type {
-  JobProvider,
-  ProviderJob,
-  ProviderSearchParams,
-  ProviderSearchResult,
+    JobProvider,
+    ProviderJob,
+    ProviderSearchParams,
+    ProviderSearchResult,
 } from "../providers/types";
 import { UsaJobsProvider } from "../providers/usajobs";
+import { WellfoundProvider } from "../providers/wellfound";
 import { WeWorkRemotelyProvider } from "../providers/weworkremotely";
 import { WorkingNomadsProvider } from "../providers/workingnomads";
 
@@ -39,11 +45,17 @@ const providers: JobProvider[] = [
   new HimalayasProvider(),
   new WeWorkRemotelyProvider(),
   new WorkingNomadsProvider(),
+  new TheMuseProvider(),
+  new RemoteBackendJobsProvider(),
+  new AshbyProvider(),
+  new SimplyHiredProvider(),
+  new BuiltInChicagoProvider(),
   // API-key providers (active when configured)
   new UsaJobsProvider(),
   new ReedProvider(),
   new CareerjetProvider(),
   new DiceProvider(),
+  new WellfoundProvider(),
   new AiDiscoveryProvider(),
 ];
 
@@ -157,6 +169,11 @@ export function applyFilters(
         if (age > days) return false;
       }
     }
+    if (filters.max_age_days != null && j.published_at) {
+      const age =
+        (Date.now() - new Date(j.published_at).getTime()) / 86400000;
+      if (age > filters.max_age_days) return false;
+    }
     if (filters.worldwide_remote && j.remote_status !== "remote") return false;
 
     return true;
@@ -186,7 +203,13 @@ export function sortJobs(
           (b.salary_min ?? b.salary_max ?? Infinity),
       );
     default:
-      return arr;
+      // Shuffle to vary results across searches while keeping it deterministic
+      // within a session by seeding with the current hour
+      const seed = Math.floor(Date.now() / 3600000); // changes hourly
+      return arr
+        .map((j, i) => ({ j, i, r: (i * 9301 + 49297 + seed) % 233280 }))
+        .sort((a, b) => a.r - b.r)
+        .map(({ j }) => j);
   }
 }
 

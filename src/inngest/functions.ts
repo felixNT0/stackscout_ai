@@ -1,5 +1,5 @@
-import { persistJobs } from "@/lib/jobs/store";
 import { prisma } from "@/lib/db";
+import { persistJobs } from "@/lib/jobs/store";
 import { discoverJobs } from "@/services/job-discovery";
 import { inngest } from "./client";
 
@@ -94,6 +94,66 @@ export const refreshJobStatus = inngest.createFunction(
   },
 );
 
+/** Daily: remind users to follow up on stale applications. */
+export const applicationFollowUpReminders = inngest.createFunction(
+  {
+    id: "application-follow-up-reminders",
+    retries: 2,
+    triggers: [{ cron: "0 9 * * *" }], // daily 09:00 UTC
+  },
+  async ({ step }) => {
+    const staleDays = 7; // Remind after 7 days of no activity
+    const cutoff = new Date(Date.now() - staleDays * 86400000);
+
+    const staleApps = await step.run("find-stale-applications", async () => {
+      return prisma.application.findMany({
+        where: {
+          status: { in: ["applied", "assessment", "interview", "technical_interview", "final_interview"] },
+          updated_at: { lt: cutoff },
+        },
+        include: {
+          job: {
+            select: {
+              title: true,
+              company: true,
+            },
+          },
+        },
+        take: 100, // Limit to prevent overload
+      });
+    });
+
+    let notified = 0;
+    for (const app of staleApps) {
+      const daysSinceUpdate = Math.floor(
+        (Date.now() - new Date(app.updated_at).getTime()) / 86400000,
+      );
+
+      await step.run(`notify-${app.id}`, async () => {
+        await prisma.notification.create({
+          data: {
+            user_id: app.user_id,
+            type: "application_reminder",
+            title: "Follow up on application",
+            message: `It's been ${daysSinceUpdate} days since you last updated your application for ${app.job?.title ?? "Unknown"} at ${app.job?.company ?? "Unknown"}. Consider following up with the recruiter.`,
+            data: {
+              application_id: app.id,
+              job_id: app.job_id,
+              days_since_update: daysSinceUpdate,
+            },
+          },
+        });
+      });
+      notified++;
+    }
+
+    return {
+      stale_applications: staleApps.length,
+      reminders_sent: notified,
+    };
+  },
+);
+
 /** Process search alerts: run each active alert's filters and notify. */
 export const processAlerts = inngest.createFunction(
   {
@@ -108,31 +168,57 @@ export const processAlerts = inngest.createFunction(
     let notified = 0;
     for (const alert of alerts ?? []) {
       const filters = (alert.filters ?? {}) as Record<string, unknown>;
-      const query =
-        (filters.keywords as string) ||
-        (filters.job_title as string) ||
-        (filters.skill as string) ||
-        "software engineer";
+
+      // Build better query from multiple filter fields
+      const queryParts: string[] = [];
+      if (filters.job_title) queryParts.push(filters.job_title as string);
+      if (filters.keywords) queryParts.push(filters.keywords as string);
+      if (filters.skill) queryParts.push(filters.skill as string);
+      if (filters.technology) queryParts.push(filters.technology as string);
+      const query = queryParts.join(" ") || "software engineer";
+
       const result = await step.run(`alert-${alert.id}`, async () => {
         const { jobs } = await discoverJobs({
           query,
           filters: filters as never,
-          pageSize: 15,
+          pageSize: 20, // Get more to filter better
         });
-        const fresh = jobs.filter((j) => !j.is_mock).slice(0, 5);
+
+        // Filter out seen jobs and low-quality matches
+        const fresh = jobs.filter((j) => {
+          if (j.is_mock) return false;
+          // Basic quality checks
+          if (!j.title || !j.company) return false;
+          if (j.title.length < 3 || j.company.length < 2) return false;
+          return true;
+        }).slice(0, 10); // More results for better selection
+
         if (!fresh.length) return 0;
+
+        // Sort by relevance (published date, match score if available)
+        const sorted = fresh.sort((a, b) => {
+          const aDate = a.published_at ? new Date(a.published_at).getTime() : 0;
+          const bDate = b.published_at ? new Date(b.published_at).getTime() : 0;
+          return bDate - aDate; // Newest first
+        });
+
+        const topJobs = sorted.slice(0, 5);
         await prisma.notification.create({
           data: {
             user_id: alert.user_id,
             type: "alert",
             title: `Job alert: ${alert.name}`,
-            message: `${fresh.length} new opportunities match your saved search "${alert.name}".`,
+            message: `${topJobs.length} new opportunities match your saved search "${alert.name}".`,
             data: {
-              jobs: fresh.map((j) => ({
+              jobs: topJobs.map((j) => ({
                 id: j.external_id,
                 title: j.title,
                 company: j.company,
                 url: j.application_url,
+                location: j.location,
+                salary: j.salary_min && j.salary_max
+                  ? `${j.salary_currency ?? ""} ${j.salary_min.toLocaleString()} - ${j.salary_max.toLocaleString()}`
+                  : null,
               })),
             },
           },
@@ -141,7 +227,7 @@ export const processAlerts = inngest.createFunction(
           where: { id: alert.id },
           data: { last_sent_at: new Date() },
         });
-        return fresh.length;
+        return topJobs.length;
       });
       notified += result;
     }

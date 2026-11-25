@@ -1,6 +1,7 @@
 "use client";
 
 import { GoogleIcon } from "@/components/auth/google-icon";
+import { LinkedInIcon } from "@/components/auth/linkedin-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,10 +39,10 @@ export default function SignInPage() {
 
       router.push("/dashboard");
       router.refresh();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error signing in",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -55,10 +56,24 @@ export default function SignInPage() {
       // NextAuth handles the OAuth redirect to /api/auth/callback/google
       // automatically; no manual redirectTo is needed.
       await signIn("google", { callbackUrl: "/dashboard" });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error signing in with Google",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleLinkedInSignIn = async () => {
+    setLoading(true);
+    try {
+      await signIn("linkedin", { callbackUrl: "/dashboard" });
+    } catch (error) {
+      toast({
+        title: "Error signing in with LinkedIn",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
       setLoading(false);
@@ -82,20 +97,36 @@ export default function SignInPage() {
         </div>
 
         <div className="bg-card border rounded-lg p-6 space-y-6">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <GoogleIcon className="mr-2" />
-            )}
-            Sign in with Google
-          </Button>
+          <div className="space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <GoogleIcon className="mr-2" />
+              )}
+              Sign in with Google
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleLinkedInSignIn}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LinkedInIcon className="mr-2" />
+              )}
+              Sign in with LinkedIn
+            </Button>
+          </div>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

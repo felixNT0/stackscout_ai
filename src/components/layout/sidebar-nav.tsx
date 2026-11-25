@@ -1,21 +1,22 @@
 "use client"
 
+import type { LucideIcon } from "lucide-react"
+import {
+    Bell,
+    Bookmark,
+    Brain,
+    CheckSquare,
+    FileText,
+    Home,
+    LogOut,
+    MessageSquare,
+    Search,
+    Settings,
+    TrendingUp,
+    Wrench
+} from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-  Bell,
-  Bookmark,
-  Brain,
-  CheckSquare,
-  FileText,
-  Home,
-  LogOut,
-  MessageSquare,
-  Search,
-  Settings,
-  TrendingUp,
-} from "lucide-react"
-import type { LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -29,6 +30,7 @@ const navigation: { name: string; href: string; icon: LucideIcon }[] = [
   { name: "Saved Jobs", href: "/dashboard/saved", icon: Bookmark },
   { name: "Applications", href: "/dashboard/applications", icon: CheckSquare },
   { name: "Career Insights", href: "/dashboard/insights", icon: TrendingUp },
+  { name: "AI Tools", href: "/dashboard/tools", icon: Wrench },
   { name: "Job Alerts", href: "/dashboard/alerts", icon: Bell },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]

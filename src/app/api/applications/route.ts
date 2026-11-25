@@ -1,8 +1,8 @@
 import { handleApiError, jsonError, jsonOk, parseBody } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { applicationCreateSchema } from "@/lib/validations";
 import { NextRequest } from "next/server";
-import { getCurrentUser } from "@/lib/auth-helpers";
 
 export async function GET(req: NextRequest) {
   try {

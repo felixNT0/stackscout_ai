@@ -28,6 +28,7 @@ export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }): Promise<boolean> {
   const t = getTransporter();
 
@@ -35,6 +36,9 @@ export async function sendEmail(opts: {
     // No SMTP configured — log to console for development
     console.log(`[email] To: ${opts.to} | Subject: ${opts.subject}`);
     console.log(`[email] Body: ${opts.html.slice(0, 200)}...`);
+    if (opts.attachments?.length) {
+      console.log(`[email] Attachments: ${opts.attachments.map((a) => a.filename).join(", ")}`);
+    }
     return true; // Return true so flow continues in dev
   }
 
@@ -44,6 +48,11 @@ export async function sendEmail(opts: {
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
+      attachments: opts.attachments?.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+      })),
     });
     return true;
   } catch (err) {

@@ -35,10 +35,10 @@ export default function ResetPasswordPage() {
         title: "Password reset email sent",
         description: "Check your email for the reset link.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -1,30 +1,32 @@
 "use client";
 
+import { BulkActions } from "@/components/applications/bulk-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
-import { Briefcase, Calendar, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { Briefcase, Calendar, Download, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const STATUSES = [
@@ -88,6 +90,9 @@ type Application = {
   notes: string | null;
   salary_expected: number | null;
   application_url: string | null;
+  submission_channel: string | null;
+  submission_status: string | null;
+  submitted_at: string | null;
   created_at: string;
   updated_at: string;
   jobs: JobInfo;
@@ -180,6 +185,18 @@ export default function ApplicationsPage() {
   const [companyFilter, setCompanyFilter] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [detail, setDetail] = useState<Application | null>(null);
+  const [schedulingInterview, setSchedulingInterview] = useState<Application | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [interviewForm, setInterviewForm] = useState({
+    interview_date: "",
+    interview_type: "video" as "phone" | "video" | "onsite" | "technical" | "final",
+    interviewer_name: "",
+    interviewer_email: "",
+    location: "",
+    meeting_link: "",
+    notes: "",
+  });
+  const [scheduling, setScheduling] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -227,6 +244,69 @@ export default function ApplicationsPage() {
     }
   }
 
+  async function submitApplication(app: Application) {
+    try {
+      const body = await apiFetch(`/api/applications/${app.id}/submit`, {
+        method: "POST",
+      });
+      const data = body.data as { success: boolean; message: string };
+      toast({
+        title: data.success ? "Application submitted!" : "Submission failed",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
+      });
+      load();
+    } catch (e) {
+      toast({
+        title: "Submission failed",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    }
+  }
+
+  function exportToCsv() {
+    if (!apps?.length) return;
+
+    const headers = [
+      "Company",
+      "Title",
+      "Status",
+      "Applied Date",
+      "Interview Date",
+      "Salary Expected",
+      "Source",
+      "Application URL",
+      "Notes",
+    ];
+
+    const rows = apps.map((a) => [
+      a.jobs?.company ?? "",
+      a.jobs?.title ?? "",
+      STATUS_LABELS[a.status],
+      a.application_date ?? "",
+      a.interview_date ?? "",
+      a.salary_expected ?? "",
+      a.jobs?.source_name ?? "",
+      a.application_url ?? "",
+      (a.notes ?? "").replace(/\n/g, " "),
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `applications-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Exported to CSV" });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -236,10 +316,18 @@ export default function ApplicationsPage() {
             Track every job application through your pipeline.
           </p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Application
-        </Button>
+        <div className="flex items-center gap-2">
+          {apps && apps.length > 0 && (
+            <Button variant="outline" size="sm" onClick={exportToCsv}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          )}
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Application
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -342,29 +430,91 @@ export default function ApplicationsPage() {
                             {daysSince(a.updated_at)}d in status
                           </span>
                         </div>
+                        {a.submission_status && a.submission_status !== "submitted" && (
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={
+                                a.submission_status === "pending_review"
+                                  ? "warning"
+                                  : a.submission_status === "failed"
+                                    ? "destructive"
+                                    : "secondary"
+                              }
+                              className="text-[10px]"
+                            >
+                              {a.submission_status === "pending_review"
+                                ? "Ready to submit"
+                                : a.submission_status === "submitting"
+                                  ? "Submitting..."
+                                  : a.submission_status === "failed"
+                                    ? "Failed"
+                                    : a.submission_status}
+                            </Badge>
+                            {a.submission_channel && (
+                              <span className="text-[10px] text-muted-foreground capitalize">
+                                via {a.submission_channel}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {a.submission_status === "submitted" && (
+                          <Badge variant="success" className="text-[10px]">
+                            Submitted {a.submitted_at ? fmtDate(a.submitted_at) : ""}
+                          </Badge>
+                        )}
                         {a.interview_date && (
                           <p className="text-xs flex items-center gap-1 text-muted-foreground">
                             <Calendar className="h-3 w-3" />
                             Interview {fmtDate(a.interview_date)}
                           </p>
                         )}
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <Select
-                            value={a.status}
-                            onValueChange={(v) => patchStatus(a, v as Status)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STATUSES.map((s) => (
-                                <SelectItem key={s} value={s}>
-                                  {STATUS_LABELS[s]}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div className="flex gap-2">
+                          <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              value={a.status}
+                              onValueChange={(v) => patchStatus(a, v as Status)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {STATUSES.map((s) => (
+                                  <SelectItem key={s} value={s}>
+                                    {STATUS_LABELS[s]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {["interview", "technical_interview", "final_interview"].includes(a.status) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSchedulingInterview(a);
+                              }}
+                              title="Schedule interview"
+                            >
+                              <Calendar className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
+                        {a.submission_status === "pending_review" && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="w-full h-8 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void submitApplication(a);
+                            }}
+                          >
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            Review & Submit
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -385,10 +535,24 @@ export default function ApplicationsPage() {
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-muted-foreground">
+                <tr className="border-b text-left text-muted-foreground" role="row">
+                  <th className="px-4 py-3 w-10" scope="col">
+                    <Checkbox
+                      aria-label="Select all applications"
+                      checked={filtered.length > 0 && filtered.every((a) => selectedIds.includes(a.id))}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedIds(filtered.map((a) => a.id));
+                        } else {
+                          setSelectedIds([]);
+                        }
+                      }}
+                    />
+                  </th>
                   {[
                     "Company / Title",
                     "Status",
+                    "Submission",
                     "Applied",
                     "Interview",
                     "Salary",
@@ -398,6 +562,7 @@ export default function ApplicationsPage() {
                     <th
                       key={h}
                       className="px-4 py-3 font-medium whitespace-nowrap"
+                      scope="col"
                     >
                       {h}
                     </th>
@@ -411,6 +576,19 @@ export default function ApplicationsPage() {
                     className="border-b last:border-0 hover:bg-accent/50 cursor-pointer"
                     onClick={() => setDetail(a)}
                   >
+                    <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        aria-label={`Select ${a.jobs?.title ?? "application"} at ${a.jobs?.company ?? "company"}`}
+                        checked={selectedIds.includes(a.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedIds((prev) => [...prev, a.id]);
+                          } else {
+                            setSelectedIds((prev) => prev.filter((id) => id !== a.id));
+                          }
+                        }}
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="font-medium">
                         {a.jobs?.title ?? "Unknown job"}
@@ -423,6 +601,41 @@ export default function ApplicationsPage() {
                       <Badge variant={statusBadgeVariant(a.status)}>
                         {STATUS_LABELS[a.status]}
                       </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {a.submission_status ? (
+                        <div className="space-y-1">
+                          <Badge
+                            variant={
+                              a.submission_status === "submitted"
+                                ? "success"
+                                : a.submission_status === "pending_review"
+                                  ? "warning"
+                                  : a.submission_status === "failed"
+                                    ? "destructive"
+                                    : "secondary"
+                            }
+                            className="text-[10px]"
+                          >
+                            {a.submission_status === "submitted"
+                              ? "Submitted"
+                              : a.submission_status === "pending_review"
+                                ? "Ready"
+                                : a.submission_status === "submitting"
+                                  ? "Sending..."
+                                  : a.submission_status === "failed"
+                                    ? "Failed"
+                                    : a.submission_status}
+                          </Badge>
+                          {a.submission_channel && (
+                            <p className="text-[10px] text-muted-foreground capitalize">
+                              {a.submission_channel}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {fmtDate(a.application_date)}
@@ -457,6 +670,81 @@ export default function ApplicationsPage() {
           load();
         }}
       />
+      {schedulingInterview && (
+        <InterviewScheduleDialog
+          app={schedulingInterview}
+          form={interviewForm}
+          setForm={setInterviewForm}
+          onClose={() => {
+            setSchedulingInterview(null);
+            setInterviewForm({
+              interview_date: "",
+              interview_type: "video",
+              interviewer_name: "",
+              interviewer_email: "",
+              location: "",
+              meeting_link: "",
+              notes: "",
+            });
+          }}
+          onSubmit={async () => {
+            if (!interviewForm.interview_date) {
+              toast({ title: "Please select a date and time", variant: "destructive" });
+              return;
+            }
+            setScheduling(true);
+            try {
+              const res = await fetch("/api/interviews/schedule", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  application_id: schedulingInterview.id,
+                  interview_date: new Date(interviewForm.interview_date).toISOString(),
+                  interview_type: interviewForm.interview_type,
+                  interviewer_name: interviewForm.interviewer_name || undefined,
+                  interviewer_email: interviewForm.interviewer_email || undefined,
+                  location: interviewForm.location || undefined,
+                  meeting_link: interviewForm.meeting_link || undefined,
+                  notes: interviewForm.notes || undefined,
+                }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error ?? "Failed to schedule");
+
+              toast({
+                title: "Interview scheduled!",
+                description: "Calendar invite link generated.",
+              });
+
+              // Open calendar link
+              if (data.data?.calendar_url) {
+                window.open(data.data.calendar_url, "_blank");
+              }
+
+              setSchedulingInterview(null);
+              setInterviewForm({
+                interview_date: "",
+                interview_type: "video",
+                interviewer_name: "",
+                interviewer_email: "",
+                location: "",
+                meeting_link: "",
+                notes: "",
+              });
+              load();
+            } catch (err) {
+              toast({
+                title: "Failed to schedule",
+                description: err instanceof Error ? err.message : "Please try again.",
+                variant: "destructive",
+              });
+            } finally {
+              setScheduling(false);
+            }
+          }}
+          scheduling={scheduling}
+        />
+      )}
       {detail && (
         <ApplicationDetailDialog
           app={detail}
@@ -483,6 +771,11 @@ export default function ApplicationsPage() {
           }}
         />
       )}
+      <BulkActions
+        selectedIds={selectedIds}
+        onClear={() => setSelectedIds([])}
+        onRefresh={load}
+      />
     </div>
   );
 }
@@ -994,6 +1287,144 @@ function ApplicationDetailDialog({
               {saving ? "Saving…" : "Save changes"}
             </Button>
           </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InterviewScheduleDialog({
+  app,
+  form,
+  setForm,
+  onClose,
+  onSubmit,
+  scheduling,
+}: {
+  app: Application;
+  form: {
+    interview_date: string;
+    interview_type: "phone" | "video" | "onsite" | "technical" | "final";
+    interviewer_name: string;
+    interviewer_email: string;
+    location: string;
+    meeting_link: string;
+    notes: string;
+  };
+  setForm: (form: {
+    interview_date: string;
+    interview_type: "phone" | "video" | "onsite" | "technical" | "final";
+    interviewer_name: string;
+    interviewer_email: string;
+    location: string;
+    meeting_link: string;
+    notes: string;
+  }) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  scheduling: boolean;
+}) {
+  return (
+    <Dialog open={!!app} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Schedule Interview</DialogTitle>
+          <DialogDescription>
+            {app.jobs?.title} at {app.jobs?.company}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="interview_date">Date & Time</Label>
+            <Input
+              id="interview_date"
+              type="datetime-local"
+              value={form.interview_date}
+              onChange={(e) => setForm({ ...form, interview_date: e.target.value })}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="interview_type">Type</Label>
+            <Select
+              value={form.interview_type}
+              onValueChange={(v) => setForm({ ...form, interview_type: v as typeof form.interview_type })}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="video">Video Call</SelectItem>
+                <SelectItem value="phone">Phone Call</SelectItem>
+                <SelectItem value="onsite">On-site</SelectItem>
+                <SelectItem value="technical">Technical Interview</SelectItem>
+                <SelectItem value="final">Final Interview</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="interviewer_name">Interviewer Name</Label>
+              <Input
+                id="interviewer_name"
+                placeholder="e.g. John Smith"
+                value={form.interviewer_name}
+                onChange={(e) => setForm({ ...form, interviewer_name: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="interviewer_email">Interviewer Email</Label>
+              <Input
+                id="interviewer_email"
+                type="email"
+                placeholder="john@company.com"
+                value={form.interviewer_email}
+                onChange={(e) => setForm({ ...form, interviewer_email: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="location">Location</Label>
+            <Input
+              id="location"
+              placeholder="Office address or 'Remote'"
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="meeting_link">Meeting Link</Label>
+            <Input
+              id="meeting_link"
+              type="url"
+              placeholder="https://zoom.us/j/..."
+              value={form.meeting_link}
+              onChange={(e) => setForm({ ...form, meeting_link: e.target.value })}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              placeholder="Any additional notes..."
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={scheduling}>
+            Cancel
+          </Button>
+          <Button onClick={onSubmit} disabled={scheduling}>
+            {scheduling ? "Scheduling..." : "Schedule Interview"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

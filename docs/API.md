@@ -111,7 +111,50 @@ Search alerts (`name`, `filters`, `frequency: daily|twice_daily|weekly`, `minimu
 
 ### `GET /api/notifications?unread=true` / `POST /api/notifications` `{ ids? } | { all: true }`
 
-### `GET|PATCH /api/settings` — theme, notification prefs, privacy flags.
+### `GET /api/notifications/stream` — SSE stream for real-time notifications.
+
+## AI Tools
+
+### `POST /api/ai/tools` — `{ tool, params }`
+Available tools:
+- `resume-score` — Score resume against job
+- `skill-gaps` — Analyze skill gaps
+- `mock-interview` — Generate mock interview questions
+- `evaluate-answer` — Evaluate interview answer
+- `salary-negotiation` — Generate negotiation script
+- `predict-questions` — Predict interview questions
+- `cover-letter-variants` — Generate 4 cover letter styles
+- `follow-up-email` — Generate follow-up email
+- `career-path` — Career path advice
+- `portfolio-suggestions` — Portfolio project ideas
+
+## Bulk Operations
+
+### `PATCH /api/applications/bulk` — `{ ids: string[], status: string }`
+Update status for multiple applications.
+
+### `DELETE /api/applications/bulk` — `{ ids: string[] }`
+Delete multiple applications.
+
+### `POST /api/applications/export` — `{ ids?: string[] }`
+Export applications to CSV. Returns `text/csv` file.
+
+## Resume Builder
+
+### `POST /api/resumes/pdf` — `{ name, email, phone, location, linkedin?, website?, summary, sections, template }`
+Generate PDF resume from builder data. Returns `application/pdf` file.
+
+## Interview Scheduling
+
+### `POST /api/interviews/schedule` — `{ application_id, interview_date, interview_type, interviewer_name?, interviewer_email?, location?, meeting_link?, notes? }`
+Schedule interview and generate calendar invite link.
+
+## LinkedIn Integration
+
+### `POST /api/profile/linkedin` — `{ access_token }`
+Import LinkedIn profile data.
+
+## GET|PATCH /api/settings` — theme, notification prefs, privacy flags.
 ### `GET|PATCH /api/profile` — `{ profile?, preferences? }` payloads.
 
 ## Dashboard & Admin

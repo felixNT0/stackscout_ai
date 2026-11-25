@@ -1,17 +1,26 @@
 "use client";
 
 import { JobCard, JobCardSkeleton } from "@/components/jobs/job-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,17 +28,18 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import type { Job, JobSearchFilters } from "@/types";
 import {
-  Briefcase,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  LayoutGrid,
-  List,
-  Loader2,
-  Search,
-  Sparkles,
-  X,
+    Briefcase,
+    ChevronLeft,
+    ChevronRight,
+    Filter,
+    LayoutGrid,
+    List,
+    Loader2,
+    Search,
+    Sparkles,
+    X,
 } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
@@ -53,7 +63,7 @@ const EXPERIENCE_LEVELS = [
   "director",
 ];
 const CURRENCIES = ["USD", "EUR", "GBP", "NGN", "INR", "CAD", "AUD"];
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 24;
 
 type SortKey = "relevance" | "newest" | "salary_desc" | "salary_asc";
 type ViewMode = "grid" | "list";
@@ -91,6 +101,7 @@ interface FilterState {
   salary_max: string;
   salary_currency: string;
   date_posted: string;
+  max_age_days: string;
 }
 
 const EMPTY_FILTERS: FilterState = {
@@ -108,6 +119,7 @@ const EMPTY_FILTERS: FilterState = {
   salary_max: "",
   salary_currency: "",
   date_posted: "",
+  max_age_days: "",
 };
 
 function buildFilters(f: FilterState): JobSearchFilters {
@@ -128,6 +140,7 @@ function buildFilters(f: FilterState): JobSearchFilters {
   if (!Number.isNaN(max) && max >= 0) filters.salary_max = max;
   if (f.salary_currency) filters.salary_currency = f.salary_currency;
   if (f.date_posted) filters.date_posted = f.date_posted;
+  if (f.max_age_days) filters.max_age_days = parseInt(f.max_age_days, 10);
   return filters;
 }
 
@@ -238,6 +251,24 @@ function FilterPanel({
               <SelectItem value="24h">Last 24 hours</SelectItem>
               <SelectItem value="7d">Last 7 days</SelectItem>
               <SelectItem value="30d">Last 30 days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Job freshness</Label>
+          <Select
+            value={filters.max_age_days || "any"}
+            onValueChange={(v) => set("max_age_days", v === "any" ? "" : v)}
+          >
+            <SelectTrigger aria-label="Job freshness">
+              <SelectValue placeholder="Any age" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">Any age</SelectItem>
+              <SelectItem value="1">Last 24 hours</SelectItem>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="14">Last 14 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -373,6 +404,15 @@ function JobSearchPageInner() {
   const [hasSearched, setHasSearched] = useState(false);
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
+  const [bulkApplyLoading, setBulkApplyLoading] = useState(false);
+  const [bulkApplyOpen, setBulkApplyOpen] = useState(false);
+  const [bulkApplyResult, setBulkApplyResult] = useState<{
+    total: number;
+    succeeded: number;
+    failed: number;
+    results: { job_id: string; success: boolean; error?: string; channel?: string }[];
+  } | null>(null);
 
   const runSearch = useCallback(
     async (targetPage: number, sortOverride?: SortKey) => {
@@ -436,6 +476,61 @@ function JobSearchPageInner() {
     ? Math.max(1, Math.ceil(result.total / result.page_size))
     : 1;
   const jobs = result?.jobs ?? [];
+
+  function toggleJobSelection(jobId: string) {
+    setSelectedJobs((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  }
+
+  function selectAllJobs() {
+    setSelectedJobs(new Set(jobs.map((j) => j.id)));
+  }
+
+  function clearSelection() {
+    setSelectedJobs(new Set());
+  }
+
+  async function bulkPrepareApplications() {
+    if (!selectedJobs.size) return;
+    setBulkApplyLoading(true);
+    setBulkApplyResult(null);
+    try {
+      const res = await fetch("/api/applications/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_ids: Array.from(selectedJobs),
+          tone: "professional",
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(
+          (body as { error?: string }).error ?? "Bulk prepare failed",
+        );
+      const data = (body as { data: { results: { job_id: string; success: boolean; error?: string; channel?: string }[]; summary: { total: number; succeeded: number; failed: number } } }).data;
+      setBulkApplyResult({
+        total: data.summary.total,
+        succeeded: data.summary.succeeded,
+        failed: data.summary.failed,
+        results: data.results,
+      });
+      setBulkApplyOpen(true);
+      clearSelection();
+    } catch (err) {
+      toast({
+        title: "Bulk apply failed",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkApplyLoading(false);
+    }
+  }
 
   const pageNumbers: (number | "…")[] = [];
   if (totalPages <= 7) {
@@ -597,6 +692,44 @@ function JobSearchPageInner() {
                   : "Enter a query and hit Search."}
             </p>
             <div className="flex items-center gap-2">
+              {jobs.length > 0 && (
+                <div className="flex items-center gap-2 mr-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllJobs}
+                    disabled={selectedJobs.size === jobs.length}
+                  >
+                    Select all
+                  </Button>
+                  {selectedJobs.size > 0 && (
+                    <>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedJobs.size} selected
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearSelection}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => void bulkPrepareApplications()}
+                        disabled={bulkApplyLoading}
+                      >
+                        {bulkApplyLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        Bulk Apply
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
               <Select
                 value={sort}
                 onValueChange={(v) => {
@@ -688,13 +821,27 @@ function JobSearchPageInner() {
             view === "grid" ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {jobs.map((job) => (
-                  <JobCard key={job.id} job={job} variant="card" />
+                  <div key={job.id} className="relative">
+                    <Checkbox
+                      checked={selectedJobs.has(job.id)}
+                      onCheckedChange={() => toggleJobSelection(job.id)}
+                      className="absolute top-2 right-2 z-10 bg-background/80"
+                    />
+                    <JobCard job={job} variant="card" />
+                  </div>
                 ))}
               </div>
             ) : (
               <div className="space-y-3">
                 {jobs.map((job) => (
-                  <JobCard key={job.id} job={job} variant="row" />
+                  <div key={job.id} className="relative">
+                    <Checkbox
+                      checked={selectedJobs.has(job.id)}
+                      onCheckedChange={() => toggleJobSelection(job.id)}
+                      className="absolute top-2 right-2 z-10 bg-background/80"
+                    />
+                    <JobCard job={job} variant="row" />
+                  </div>
                 ))}
               </div>
             )
@@ -766,6 +913,63 @@ function JobSearchPageInner() {
           )}
         </div>
       </div>
+
+      {/* Bulk apply result dialog */}
+      <Dialog open={bulkApplyOpen} onOpenChange={setBulkApplyOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Bulk Application Results</DialogTitle>
+            <DialogDescription>
+              {bulkApplyResult
+                ? `${bulkApplyResult.succeeded} of ${bulkApplyResult.total} applications prepared successfully.`
+                : "Preparing applications..."}
+            </DialogDescription>
+          </DialogHeader>
+          {bulkApplyResult && (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {bulkApplyResult.results.map((r) => (
+                <div
+                  key={r.job_id}
+                  className="flex items-center justify-between rounded border p-2 text-sm"
+                >
+                  <span className="font-mono text-xs">{r.job_id.slice(0, 8)}...</span>
+                  <div className="flex items-center gap-2">
+                    {r.success ? (
+                      <>
+                        <Badge variant="success" className="text-[10px]">
+                          Ready
+                        </Badge>
+                        {r.channel && (
+                          <span className="text-[10px] text-muted-foreground capitalize">
+                            {r.channel}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <Badge variant="destructive" className="text-[10px]">
+                        {r.error ?? "Failed"}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkApplyOpen(false)}
+            >
+              Close
+            </Button>
+            <Button asChild>
+              <Link href="/dashboard/applications">
+                View Applications
+              </Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

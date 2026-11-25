@@ -286,15 +286,20 @@ model Job {
   saved_jobs   SavedJob[]
   applications Application[]
   documents    GeneratedDocument[]
+  views        JobView[]
 
   @@unique([external_id, source_name])
   @@index([company])
+  @@index([title])
   @@index([location])
   @@index([remote_status])
   @@index([employment_type])
   @@index([experience_level])
   @@index([status])
   @@index([discovered_at])
+  @@index([created_at])
+  @@index([company, title])
+  @@index([status, discovered_at])
   @@map("jobs")
 }
 
@@ -374,6 +379,10 @@ model Application {
   notes             String?
   salary_expected   Int?
   application_url   String?
+  submission_channel String?
+  submission_status  String?
+  submission_payload Json?
+  submitted_at      DateTime? @db.Timestamptz()
   created_at        DateTime  @default(now()) @db.Timestamptz()
   updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz()
 
@@ -503,6 +512,22 @@ model AdminAuditLog {
 
   @@index([admin_id])
   @@map("admin_audit_logs")
+}
+
+model JobView {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String
+  job_id      String   @db.Uuid
+  fingerprint String?
+  viewed_at   DateTime @default(now()) @db.Timestamptz()
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, job_id])
+  @@index([user_id])
+  @@index([job_id])
+  @@index([fingerprint])
+  @@map("job_views")
 }
 
 model ProviderSyncLog {

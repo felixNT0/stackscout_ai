@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="24" fill="url(#grad)"/>
+  <g transform="translate(32, 32)" fill="white">
+    <path d="M32 8L8 20l24 12 24-12-24-12z"/>
+    <path d="M8 32l24 12 24-12" stroke="white" stroke-width="2" fill="none"/>
+    <path d="M8 44l24 12 24-12" stroke="white" stroke-width="2" fill="none"/>
+  </g>
+  <text x="64" y="100" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white" text-anchor="middle">AI</text>
+</svg>

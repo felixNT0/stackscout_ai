@@ -1,11 +1,12 @@
 import type { Prisma } from "@/generated/prisma/client";
-import {handleApiError, jsonOk, jsonError} from "@/lib/api";
-import { prisma } from "@/lib/db";
-import { NextRequest } from "next/server";
+import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
+import { connection, NextRequest } from "next/server";
 
 /** List jobs visible to the user: all active jobs, newest first, paginated. */
 export async function GET(req: NextRequest) {
+  await connection();
   try {
     const user = await getCurrentUser();
     if (!user) return jsonError("Unauthorized", 401);

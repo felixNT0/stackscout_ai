@@ -56,6 +56,67 @@
     --border: 223 47% 11%;
     --input: 223 47% 11%;
     --ring: 255 81% 60%;
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+    --error: 0 84% 60%;
+  }
+
+  /* Dark mode improvements */
+  .dark {
+    /* Improve contrast for better readability */
+    --muted-foreground: 215 20% 70%;
+    
+    /* Ensure borders are visible */
+    --border: 223 47% 20%;
+    --input: 223 47% 20%;
+    
+    /* Improve card backgrounds */
+    --card: 224 54% 18%;
+    --popover: 224 54% 18%;
+    
+    /* Better accent colors */
+    --accent: 223 47% 15%;
+    --accent-foreground: 225 23% 98%;
+  }
+
+  /* Ensure dark mode text is readable */
+  .dark .text-muted-foreground {
+    color: hsl(215 20% 70%);
+  }
+
+  /* Improve link colors in dark mode */
+  .dark a {
+    color: hsl(255 81% 70%);
+  }
+
+  .dark a:hover {
+    color: hsl(255 81% 80%);
+  }
+
+  /* Better button contrast in dark mode */
+  .dark .btn-secondary {
+    background: hsl(223 47% 20%);
+    border-color: hsl(223 47% 25%);
+  }
+
+  .dark .btn-secondary:hover {
+    background: hsl(223 47% 25%);
+  }
+
+  /* Ensure form inputs are visible */
+  .dark input,
+  .dark select,
+  .dark textarea {
+    background: hsl(224 54% 16%);
+    border-color: hsl(223 47% 20%);
+    color: hsl(225 23% 98%);
+  }
+
+  .dark input:focus,
+  .dark select:focus,
+  .dark textarea:focus {
+    border-color: hsl(255 81% 60%);
+    box-shadow: 0 0 0 2px hsl(255 81% 60% / 0.2);
   }
 }
 
@@ -84,5 +145,72 @@
   :disabled,
   [aria-disabled="true"] {
     cursor: not-allowed;
+  }
+}
+
+/* Print styles for better printing experience */
+@media print {
+  /* Hide navigation and interactive elements */
+  nav,
+  header,
+  footer,
+  aside,
+  .no-print,
+  button,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  textarea,
+  .dialog-overlay,
+  .toast,
+  .notification-bell {
+    display: none !important;
+  }
+
+  /* Ensure content is visible and readable */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Reset backgrounds and colors for print */
+  .bg-background,
+  .bg-card,
+  .bg-muted,
+  .bg-accent,
+  .bg-popover {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Ensure text is dark for print */
+  .text-foreground,
+  .text-muted-foreground,
+  .text-primary,
+  .text-secondary {
+    color: black !important;
+  }
+
+  /* Add page breaks for better printing */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  /* Ensure cards and sections don't break across pages */
+  .card,
+  .section,
+  article {
+    page-break-inside: avoid;
+  }
+
+  /* Optimize for A4/Letter paper */
+  @page {
+    margin: 1in;
+    size: letter;
   }
 }

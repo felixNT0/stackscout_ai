@@ -1,13 +1,14 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { chatJson, isAiConfigured } from "@/lib/ai/openai";
 import {
-  handleApiError,
-  jsonError,
-  jsonOk,
-  parseBody,
-  rateLimit,
+    handleApiError,
+    jsonError,
+    jsonOk,
+    parseBody,
+    rateLimit,
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-helpers";
+import { JobCache } from "@/lib/cache/job-cache";
 import { prisma } from "@/lib/db";
 import { fingerprintId } from "@/lib/jobs/dedupe";
 import { persistJobs } from "@/lib/jobs/store";
@@ -123,16 +124,56 @@ export async function POST(req: NextRequest) {
       filters = { ...filters, ...parsed.filters };
     }
 
-    const { jobs, providerResults, usedMock } = await discoverJobs({
-      query,
-      filters,
-      page: input.page,
-      pageSize: input.page_size,
-    });
+    // Fetch fingerprints of jobs the user has already viewed
+    const seenFingerprints = await prisma.jobView
+      .findMany({
+        where: { user_id: user.id, fingerprint: { not: null } },
+        select: { fingerprint: true },
+      })
+      .then((rows) => new Set(rows.map((r) => r.fingerprint!)));
+
+    // Cache key based on query + filters (not user-specific)
+    const cacheKey = `search:${JSON.stringify({ query, filters, page: input.page, page_size: input.page_size, sort: input.sort })}`;
+
+    const { jobs, providerResults, usedMock } = await JobCache.get(
+      cacheKey,
+      async () => {
+        const result = await discoverJobs({
+          query,
+          filters,
+          page: input.page,
+          pageSize: Math.max(input.page_size * 3, 50), // Fetch more to allow filtering
+        });
+        return result;
+      },
+      5 * 60 * 1000, // 5 minutes TTL
+    );
 
     const filtered = applyFilters(jobs, filters);
+
+    // Deprioritize seen jobs: sort unseen first, then seen
     const sorted = sortJobs(filtered, input.sort);
-    const pageSlice = sorted.slice(
+    const unseen = sorted.filter((j) => {
+      const fp = fingerprintId({
+        title: j.title,
+        company: j.company,
+        location: j.location,
+        application_url: j.application_url,
+      });
+      return !seenFingerprints.has(fp);
+    });
+    const seen = sorted.filter((j) => {
+      const fp = fingerprintId({
+        title: j.title,
+        company: j.company,
+        location: j.location,
+        application_url: j.application_url,
+      });
+      return seenFingerprints.has(fp);
+    });
+    const prioritized = [...unseen, ...seen];
+
+    const pageSlice = prioritized.slice(
       (input.page - 1) * input.page_size,
       input.page * input.page_size,
     );

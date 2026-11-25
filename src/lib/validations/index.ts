@@ -16,6 +16,7 @@ export const jobSearchFiltersSchema = z.object({
   salary_max: z.number().nonnegative().optional(),
   salary_currency: z.string().max(10).optional(),
   date_posted: z.string().optional(),
+  max_age_days: z.number().int().min(1).max(365).optional(),
   visa_sponsorship: z.boolean().optional(),
   worldwide_remote: z.boolean().optional(),
   relocation_assistance: z.boolean().optional(),
@@ -23,6 +24,18 @@ export const jobSearchFiltersSchema = z.object({
   no_degree_requirement: z.boolean().optional(),
   english_speaking: z.boolean().optional(),
   easy_application: z.boolean().optional(),
+  // Advanced filters
+  company_size: z.array(z.enum(["startup", "small", "medium", "large", "enterprise"])).optional(),
+  funding_stage: z.array(z.enum(["seed", "series_a", "series_b", "series_c", "ipo", "public"])).optional(),
+  benefits: z.array(z.string()).optional(),
+  work_life_balance: z.boolean().optional(),
+  flexible_hours: z.boolean().optional(),
+  parental_leave: z.boolean().optional(),
+  health_insurance: z.boolean().optional(),
+  retirement_plan: z.boolean().optional(),
+  professional_development: z.boolean().optional(),
+  mentorship: z.boolean().optional(),
+  diversity_initiatives: z.boolean().optional(),
 });
 
 export type JobSearchFiltersInput = z.infer<typeof jobSearchFiltersSchema>;
@@ -31,7 +44,7 @@ export const jobSearchRequestSchema = z.object({
   query: z.string().min(1).max(1000),
   filters: jobSearchFiltersSchema.optional(),
   page: z.number().int().min(1).default(1),
-  page_size: z.number().int().min(1).max(50).default(20),
+  page_size: z.number().int().min(1).max(100).default(50),
   sort: z.enum(["relevance", "newest", "salary_desc", "salary_asc"]).default("relevance"),
   view: z.enum(["list", "grid"]).default("list"),
   save_search: z.boolean().default(false),
@@ -41,7 +54,7 @@ export const jobSearchRequestSchema = z.object({
 export const discoverRequestSchema = z.object({
   queries: z.array(z.string().min(1).max(300)).max(10).optional(),
   filters: jobSearchFiltersSchema.optional(),
-  max_results_per_query: z.number().int().min(1).max(50).default(20),
+  max_results_per_query: z.number().int().min(1).max(100).default(50),
 });
 
 export const resumeUploadSchema = z.object({

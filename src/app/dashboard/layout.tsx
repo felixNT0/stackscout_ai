@@ -1,3 +1,4 @@
+import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -55,6 +56,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
+      <KeyboardShortcuts />
       {/* Mobile header */}
       <header className="lg:hidden border-b p-4 flex items-center justify-between sticky top-0 bg-background z-40">
         <div className="flex items-center gap-2">

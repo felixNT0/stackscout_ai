@@ -1,34 +1,35 @@
 "use client";
 
 import {
-  Briefcase,
-  GraduationCap,
-  Loader2,
-  Rocket,
-  Sparkles,
-  Trash2,
-  Upload,
-  Wrench,
+    Briefcase,
+    GraduationCap,
+    Loader2,
+    Rocket,
+    Sparkles,
+    Trash2,
+    Upload,
+    Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { ResumeBuilder } from "@/components/resume/resume-builder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -643,6 +644,7 @@ function CandidateProfile({
             <TabsTrigger value="projects">
               Projects ({bundle.projects.length})
             </TabsTrigger>
+            <TabsTrigger value="builder">Builder</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile" className="space-y-4 pt-4">
@@ -908,6 +910,10 @@ function CandidateProfile({
                 </div>
               ))
             )}
+          </TabsContent>
+
+          <TabsContent value="builder" className="pt-4">
+            <ResumeBuilder />
           </TabsContent>
         </Tabs>
       </CardContent>

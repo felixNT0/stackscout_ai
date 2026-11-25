@@ -1,15 +1,15 @@
 "use client";
 
 import {
-  ArrowRight,
-  Bell,
-  Bookmark,
-  Briefcase,
-  CalendarClock,
-  CheckSquare,
-  Search,
-  Sparkles,
-  Upload,
+    ArrowRight,
+    Bell,
+    Bookmark,
+    Briefcase,
+    CalendarClock,
+    CheckSquare,
+    Search,
+    Sparkles,
+    Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -17,11 +17,11 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
@@ -447,6 +447,9 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Application Analytics */}
+          <ApplicationAnalyticsCard />
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -571,6 +574,142 @@ function SummaryCard({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ApplicationAnalyticsCard() {
+  const [analytics, setAnalytics] = useState<{
+    overview: {
+      total_applications: number;
+      submitted: number;
+      interviews: number;
+      offers: number;
+      rejections: number;
+      response_rate: number;
+      avg_response_time_days: number | null;
+      avg_time_to_hire_days: number | null;
+    };
+    funnel: {
+      saved: number;
+      applied: number;
+      interview: number;
+      offer: number;
+      rejected: number;
+      withdrawn: number;
+      rates: {
+        saved_to_applied: string;
+        applied_to_interview: string;
+        interview_to_offer: string;
+        overall_success: string;
+      };
+    };
+    recent_activity: {
+      last_30_days: number;
+      submitted_last_30_days: number;
+    };
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/applications/analytics");
+        if (!res.ok) throw new Error("Failed to load analytics");
+        const json = await res.json();
+        if (!cancelled) setAnalytics(json.data);
+      } catch {
+        // Silent fail — analytics is optional
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading || !analytics) return null;
+
+  const { overview, recent_activity } = analytics;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Application Analytics</CardTitle>
+        <CardDescription>
+          Your application performance metrics
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="space-y-1">
+            <p className="text-2xl font-bold">{overview.total_applications}</p>
+            <p className="text-xs text-muted-foreground">Total Applications</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl font-bold">{overview.submitted}</p>
+            <p className="text-xs text-muted-foreground">Submitted</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl font-bold">{overview.interviews}</p>
+            <p className="text-xs text-muted-foreground">Interviews</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl font-bold">{overview.offers}</p>
+            <p className="text-xs text-muted-foreground">Offers</p>
+          </div>
+        </div>
+        <div className="mt-4 pt-4 border-t space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Response Rate</span>
+            <span className="font-medium">{overview.response_rate}%</span>
+          </div>
+          {overview.avg_response_time_days && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Avg. Response Time</span>
+              <span className="font-medium">{overview.avg_response_time_days} days</span>
+            </div>
+          )}
+          {overview.avg_time_to_hire_days && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Avg. Time to Hire</span>
+              <span className="font-medium">{overview.avg_time_to_hire_days} days</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Last 30 Days</span>
+            <span className="font-medium">
+              {recent_activity.submitted_last_30_days} submitted
+            </span>
+          </div>
+        </div>
+
+        {/* Application Funnel */}
+        <div className="mt-4 pt-4 border-t">
+          <p className="text-sm font-medium mb-3">Application Funnel</p>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Saved → Applied</span>
+              <span className="font-medium">{analytics.funnel.rates.saved_to_applied}%</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Applied → Interview</span>
+              <span className="font-medium">{analytics.funnel.rates.applied_to_interview}%</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Interview → Offer</span>
+              <span className="font-medium">{analytics.funnel.rates.interview_to_offer}%</span>
+            </div>
+            <div className="flex justify-between text-sm pt-2 border-t">
+              <span className="font-medium">Overall Success Rate</span>
+              <span className="font-bold text-primary">{analytics.funnel.rates.overall_success}%</span>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

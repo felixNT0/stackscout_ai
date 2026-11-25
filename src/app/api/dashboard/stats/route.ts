@@ -1,6 +1,7 @@
-import {handleApiError, jsonOk, jsonError} from "@/lib/api";
-import { prisma } from "@/lib/db";
+import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
+import { connection } from "next/server";
 
 async function requireAdmin(userId: string) {
   const profile = await prisma.profile.findUnique({
@@ -14,6 +15,7 @@ export { requireAdmin };
 
 /** Aggregated stats for the current user's dashboard. */
 export async function GET() {
+  await connection();
   try {
     const user = await getCurrentUser();
     if (!user) return jsonError("Unauthorized", 401);
