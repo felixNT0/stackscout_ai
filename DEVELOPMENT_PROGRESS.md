@@ -118,7 +118,19 @@ _Last updated: 2026-11-04_
 - ✅ 40 unit tests
 - ✅ TypeScript strict mode
 - ✅ ESLint clean
-- ✅ Build successful (76 routes)
+- ✅ Build successful (89 routes)
+
+## Phase 8: Public API & Growth Features
+- ✅ Public developer API — API keys (read/write/admin scopes), /api/v1 endpoints (jobs, matches, applications, profile), Settings → Developer UI
+- ✅ Video introductions — browser recorder (MediaRecorder), private Vercel Blob storage, range-request streaming, attach to applications
+- ✅ Coding practice — AI-generated problems (12 topics, 3 difficulties, 6 languages), code evaluation with complexity analysis, history tracking, /dashboard/practice
+- ✅ Share links — public /share/[token] pages (profile/matches/application), view tracking, expiry, Settings → Sharing UI
+- ✅ DB: api_keys, video_introductions, share_links, practice_sessions tables
+
+## Auth.js v5 — Evaluated, Deferred
+- v5 is still beta-only (5.0.0-beta.32); latest stable is v4.24.15
+- Current v4 + getToken + connection() setup is warning-free and production-safe
+- Migrate when v5 reaches stable
 
 ## Remaining (External Setup Required)
 - Rotate Gmail app password

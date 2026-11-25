@@ -1,30 +1,32 @@
 "use client";
 
+import { ApiKeysManager } from "@/components/settings/api-keys-manager";
+import { ShareLinksManager } from "@/components/settings/share-links-manager";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -235,6 +237,8 @@ export default function SettingsPage() {
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
+          <TabsTrigger value="sharing">Sharing</TabsTrigger>
+          <TabsTrigger value="developer">Developer</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -422,6 +426,14 @@ export default function SettingsPage() {
               <DeleteAccount onDeleted={() => router.push("/")} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="sharing">
+          <ShareLinksManager />
+        </TabsContent>
+
+        <TabsContent value="developer">
+          <ApiKeysManager />
         </TabsContent>
       </Tabs>
     </div>

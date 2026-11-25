@@ -175,3 +175,33 @@ User dashboard aggregates: counts, top matches, recent applications, pipeline.
 ## Validation
 
 All request bodies are validated with Zod (`src/lib/validations`). Invalid payloads → `422` with `details` containing flattened field errors.
+
+## Public API (v1)
+
+External API for programmatic access. Authenticate with an API key created in **Settings → Developer**.
+
+**Auth:** `Authorization: Bearer <key>` or `X-API-Key: <key>` header. Keys have scopes: `read`, `write`, `admin`.
+
+### Key management (session auth)
+
+- `GET /api/account/api-keys` — list your keys (secrets never returned)
+- `POST /api/account/api-keys` — create `{ name, scopes[], expires_in_days? }` → returns plaintext `key` **once**
+- `DELETE /api/account/api-keys/:id` — revoke a key
+
+### v1 endpoints
+
+| Method | Path | Scope | Description |
+|--------|------|-------|-------------|
+| GET | `/api/v1/jobs` | read | List active jobs. Params: `page`, `page_size`, `q`, `location`, `remote`, `employment_type` |
+| GET | `/api/v1/jobs/:id` | read | Job detail with description, skills, salary |
+| GET | `/api/v1/matches` | read | Your job matches. Params: `min_score`, `limit` |
+| GET | `/api/v1/applications` | read | Your applications. Param: `status`, `limit` |
+| POST | `/api/v1/applications` | write | Create/update application `{ job_id, status?, notes?, application_url?, salary_expected? }` |
+| GET | `/api/v1/profile` | read | Your candidate profile, skills, experience, education |
+
+Errors: `401` invalid/expired/revoked key or missing scope; `404` resource not found; `422` validation error.
+
+Example:
+```bash
+curl -H "Authorization: Bearer ssk_..." "https://yourapp.com/api/v1/jobs?q=react&remote=true"
+```

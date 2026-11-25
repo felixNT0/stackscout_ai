@@ -25,6 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { VideoLibrary } from "@/components/video/video-library";
 import { cn } from "@/lib/utils";
 import { Briefcase, Calendar, Download, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -1193,6 +1194,10 @@ function ApplicationDetailDialog({
             <ExternalLink className="h-3.5 w-3.5" /> View job posting
           </a>
         )}
+
+        <div className="border-t pt-4">
+          <VideoLibrary applicationId={app.id} jobId={app.job_id} />
+        </div>
 
         <div className="border-t pt-4">
           <h3 className="text-sm font-semibold mb-3">Timeline</h3>

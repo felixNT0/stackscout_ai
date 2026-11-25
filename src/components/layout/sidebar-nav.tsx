@@ -6,6 +6,7 @@ import {
     Bookmark,
     Brain,
     CheckSquare,
+    Code2,
     FileText,
     Home,
     LogOut,
@@ -31,6 +32,7 @@ const navigation: { name: string; href: string; icon: LucideIcon }[] = [
   { name: "Applications", href: "/dashboard/applications", icon: CheckSquare },
   { name: "Career Insights", href: "/dashboard/insights", icon: TrendingUp },
   { name: "AI Tools", href: "/dashboard/tools", icon: Wrench },
+  { name: "Practice", href: "/dashboard/practice", icon: Code2 },
   { name: "Job Alerts", href: "/dashboard/alerts", icon: Bell },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]

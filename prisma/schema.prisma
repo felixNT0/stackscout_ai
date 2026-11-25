@@ -547,3 +547,72 @@ model ProviderSyncLog {
   @@index([provider_id])
   @@map("provider_sync_logs")
 }
+
+model ApiKey {
+  id           String    @id @default(uuid()) @db.Uuid
+  user_id      String
+  name         String
+  key_prefix   String
+  key_hash     String    @unique
+  scopes       String[]  @default(["read"])
+  last_used_at DateTime? @db.Timestamptz()
+  expires_at   DateTime? @db.Timestamptz()
+  revoked_at   DateTime? @db.Timestamptz()
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+
+  @@index([user_id])
+  @@index([key_hash])
+  @@map("api_keys")
+}
+
+model VideoIntroduction {
+  id              String   @id @default(uuid()) @db.Uuid
+  user_id         String
+  application_id  String?  @db.Uuid
+  job_id          String?  @db.Uuid
+  blob_url        String
+  blob_pathname   String
+  duration_seconds Int?
+  file_size       Int?
+  mime_type       String?
+  title           String?
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  @@index([user_id])
+  @@index([application_id])
+  @@map("video_introductions")
+}
+
+model ShareLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String
+  token       String    @unique
+  type        String    @default("profile") // profile | matches | application
+  target_id   String?   @db.Uuid
+  expires_at  DateTime? @db.Timestamptz()
+  view_count  Int       @default(0)
+  revoked_at  DateTime? @db.Timestamptz()
+  created_at  DateTime  @default(now()) @db.Timestamptz()
+
+  @@index([user_id])
+  @@index([token])
+  @@map("share_links")
+}
+
+model PracticeSession {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String
+  topic        String
+  difficulty   String   @default("medium")
+  language     String   @default("javascript")
+  problem      Json
+  user_code    String?  @db.Text
+  evaluation   Json?
+  score        Int?
+  attempts     Int      @default(0)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([user_id])
+  @@map("practice_sessions")
+}
