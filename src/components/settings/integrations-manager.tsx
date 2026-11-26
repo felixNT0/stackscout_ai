@@ -3,23 +3,31 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  CheckCircle2,
-  KeyRound,
-  Loader2,
-  Plus,
-  Sparkles,
-  Trash2,
+    CheckCircle2,
+    KeyRound,
+    Loader2,
+    Plus,
+    Sparkles,
+    Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -162,9 +170,9 @@ export function IntegrationsManager() {
   const { toast } = useToast();
   const [keys, setKeys] = useState<SavedKey[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [formValues, setFormValues] = useState<Record<string, Record<string, string>>>({});
+  const [saving, setSaving] = useState(false);
+  const [modalProvider, setModalProvider] = useState<string | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -183,62 +191,67 @@ export function IntegrationsManager() {
   }, [load]);
 
   const savedMap = new Map(keys.map((k) => [k.provider, k]));
+  const activeProvider = PROVIDERS.find((p) => p.id === modalProvider) ?? null;
+  const activeSaved = modalProvider ? savedMap.get(modalProvider) : undefined;
 
-  function setField(provider: string, field: string, value: string) {
-    setFormValues((prev) => ({
-      ...prev,
-      [provider]: { ...(prev[provider] ?? {}), [field]: value },
-    }));
+  function openModal(providerId: string) {
+    setFormValues({});
+    setModalProvider(providerId);
   }
 
-  async function save(provider: string) {
-    const vals = formValues[provider] ?? {};
-    const def = PROVIDERS.find((p) => p.id === provider);
-    if (!def) return;
+  function closeModal() {
+    setModalProvider(null);
+    setFormValues({});
+  }
 
-    const secretField = def.fields.find((f) => f.secret);
-    const secret = vals.secret?.trim();
-    // Require secret unless provider is optional-key (themuse)
-    const optional = def.fields.every((f) => f.optional);
-    if (secretField && !secret && !optional) {
+  function setField(field: string, value: string) {
+    setFormValues((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function save() {
+    if (!activeProvider) return;
+    const secret = formValues.secret?.trim();
+    const allOptional = activeProvider.fields.every((f) => f.optional);
+    const secretField = activeProvider.fields.find((f) => f.secret);
+
+    if (secretField && !secret && !allOptional) {
       toast({ title: "API key is required", variant: "destructive" });
       return;
     }
-    if (secretField && !secret && optional) {
-      // Removing optional key
-      await remove(provider);
+    if (secretField && !secret && allOptional) {
+      // Optional provider with empty key → remove existing key
+      await remove(activeProvider.id);
+      closeModal();
       return;
     }
 
     const config: Record<string, string> = {};
-    for (const f of def.fields) {
+    for (const f of activeProvider.fields) {
       if (f.secret) continue;
-      const v = vals[f.key]?.trim();
+      const v = formValues[f.key]?.trim();
       if (v) config[f.key] = v;
     }
-    // adzuna: app_id is required alongside key
-    if (provider === "adzuna" && !config.app_id) {
+    if (activeProvider.id === "adzuna" && !config.app_id) {
       toast({ title: "Adzuna App ID is required", variant: "destructive" });
       return;
     }
 
-    setSaving(provider);
+    setSaving(true);
     try {
       const res = await fetch("/api/account/integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider,
+          provider: activeProvider.id,
           secret: secret || "unused",
           config,
-          is_primary: def.group === "ai" ? true : undefined,
+          is_primary: activeProvider.group === "ai" ? true : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
-      toast({ title: `${def.label} key saved` });
-      setFormValues((prev) => ({ ...prev, [provider]: {} }));
-      setExpanded(null);
+      toast({ title: `${activeProvider.label} key saved` });
+      closeModal();
       load();
     } catch (err) {
       toast({
@@ -247,7 +260,7 @@ export function IntegrationsManager() {
         variant: "destructive",
       });
     } finally {
-      setSaving(null);
+      setSaving(false);
     }
   }
 
@@ -269,9 +282,6 @@ export function IntegrationsManager() {
 
   function ProviderCard({ p }: { p: (typeof PROVIDERS)[number] }) {
     const saved = savedMap.get(p.id);
-    const isOpen = expanded === p.id;
-    const vals = formValues[p.id] ?? {};
-
     return (
       <Card className={saved ? "border-green-500/40" : ""}>
         <CardHeader className="pb-2">
@@ -288,63 +298,27 @@ export function IntegrationsManager() {
                 <Badge variant="secondary" className="text-xs">primary</Badge>
               )}
             </div>
-            <div className="flex items-center gap-1">
-              {saved && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive h-7 px-2"
-                  onClick={() => remove(p.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant={isOpen ? "secondary" : "outline"}
-                className="h-7"
-                onClick={() => setExpanded(isOpen ? null : p.id)}
-              >
-                {isOpen ? "Close" : saved ? "Update" : "Add key"}
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant={saved ? "outline" : "default"}
+              className="h-7"
+              onClick={() => openModal(p.id)}
+            >
+              {saved ? "Update" : "Add key"}
+            </Button>
           </div>
           <CardDescription className="text-xs">{p.description}</CardDescription>
         </CardHeader>
-        {isOpen && (
-          <CardContent className="space-y-3 pt-0">
-            {p.fields.map((f) => (
-              <div key={f.key} className="space-y-1">
-                <Label className="text-xs">
-                  {f.label}
-                  {f.optional && <span className="text-muted-foreground"> (optional)</span>}
-                </Label>
-                <Input
-                  type={f.secret ? "password" : "text"}
-                  placeholder={f.placeholder}
-                  value={vals[f.key] ?? ""}
-                  onChange={(e) => setField(p.id, f.key, e.target.value)}
-                  className="h-8 text-sm"
-                  autoComplete="off"
-                />
-              </div>
-            ))}
+        {saved && (
+          <CardContent className="pt-0">
             <Button
               size="sm"
-              onClick={() => save(p.id)}
-              disabled={saving === p.id}
-              className="w-full"
+              variant="ghost"
+              className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+              onClick={() => remove(p.id)}
             >
-              {saving === p.id ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-              ) : (
-                <Plus className="h-3.5 w-3.5 mr-1" />
-              )}
-              {saved ? "Update key" : "Save key"}
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove key
             </Button>
-            <p className="text-[11px] text-muted-foreground">
-              Stored encrypted. Your key overrides the app default for your account only.
-            </p>
           </CardContent>
         )}
       </Card>
@@ -402,6 +376,62 @@ export function IntegrationsManager() {
           Public boards (RemoteOK, WeWorkRemotely, Greenhouse, Lever…) need no key.
         </p>
       </div>
+
+      {/* Add / Update key modal */}
+      <Dialog open={!!modalProvider} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent className="sm:max-w-md">
+          {activeProvider && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4" />
+                  {activeSaved ? `Update ${activeProvider.label}` : `Add ${activeProvider.label} key`}
+                </DialogTitle>
+                <DialogDescription>{activeProvider.description}</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 py-2">
+                {activeProvider.fields.map((f) => (
+                  <div key={f.key} className="space-y-1">
+                    <Label className="text-xs">
+                      {f.label}
+                      {f.optional && (
+                        <span className="text-muted-foreground"> (optional)</span>
+                      )}
+                    </Label>
+                    <Input
+                      type={f.secret ? "password" : "text"}
+                      placeholder={f.placeholder}
+                      value={formValues[f.key] ?? ""}
+                      onChange={(e) => setField(f.key, e.target.value)}
+                      className="h-9"
+                      autoComplete="off"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" onClick={closeModal} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button onClick={save} disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-1" />
+                  )}
+                  {activeSaved ? "Update key" : "Save key"}
+                </Button>
+              </DialogFooter>
+
+              <p className="text-[11px] text-muted-foreground">
+                Stored encrypted. Your key overrides the app default for your account only.
+              </p>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
