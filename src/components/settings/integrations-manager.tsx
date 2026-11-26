@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import {
     CheckCircle2,
+    ExternalLink,
     KeyRound,
     Loader2,
     Plus,
@@ -54,6 +55,9 @@ const PROVIDERS: {
   description: string;
   group: "ai" | "jobs";
   fields: FieldDef[];
+  helpUrl?: string;
+  helpLabel?: string;
+  tip?: string;
 }[] = [
   // ── AI providers ──
   {
@@ -66,6 +70,9 @@ const PROVIDERS: {
       { key: "model", label: "Model (optional)", placeholder: "gpt-4o-mini", optional: true },
       { key: "embedding_model", label: "Embedding model (optional)", placeholder: "text-embedding-3-small", optional: true },
     ],
+    helpUrl: "https://platform.openai.com/api-keys",
+    helpLabel: "platform.openai.com",
+    tip: "Create an API key in the OpenAI dashboard. gpt-4o-mini is cheap; add billing for higher limits.",
   },
   {
     id: "ai_gemini",
@@ -77,6 +84,9 @@ const PROVIDERS: {
       { key: "model", label: "Model (optional)", placeholder: "gemini-3.5-flash-lite", optional: true },
       { key: "embedding_model", label: "Embedding model (optional)", placeholder: "gemini-embedding-001", optional: true },
     ],
+    helpUrl: "https://aistudio.google.com/apikey",
+    helpLabel: "aistudio.google.com",
+    tip: "Free keys in Google AI Studio — no billing needed. Each model has its own daily quota.",
   },
   {
     id: "ai_custom",
@@ -89,6 +99,7 @@ const PROVIDERS: {
       { key: "model", label: "Model", placeholder: "model-name" },
       { key: "embedding_model", label: "Embedding model (optional)", placeholder: "embed-model", optional: true },
     ],
+    tip: "Works with Groq, Together AI, Ollama (http://localhost:11434/v1), LM Studio, and other OpenAI-compatible endpoints.",
   },
   // ── Job providers ──
   {
@@ -100,6 +111,9 @@ const PROVIDERS: {
       { key: "app_id", label: "App ID", placeholder: "your-app-id" },
       { key: "secret", label: "API key", placeholder: "your-api-key", secret: true },
     ],
+    helpUrl: "https://developer.adzuna.com/",
+    helpLabel: "developer.adzuna.com",
+    tip: "Sign up free — you get an App ID and API key. Free tier: 1,000 calls/month.",
   },
   {
     id: "jooble",
@@ -107,6 +121,9 @@ const PROVIDERS: {
     description: "Job search API with global coverage",
     group: "jobs",
     fields: [{ key: "secret", label: "API key", placeholder: "jooble-api-key", secret: true }],
+    helpUrl: "https://jooble.org/api/about",
+    helpLabel: "jooble.org/api",
+    tip: "Request a key via the Jooble API page — they email it after review.",
   },
   {
     id: "tavily",
@@ -114,6 +131,9 @@ const PROVIDERS: {
     description: "AI web search for job discovery",
     group: "jobs",
     fields: [{ key: "secret", label: "API key", placeholder: "tvly-...", secret: true }],
+    helpUrl: "https://app.tavily.com/",
+    helpLabel: "app.tavily.com",
+    tip: "Sign up free — 1,000 API credits/month on the free plan.",
   },
   {
     id: "dice",
@@ -121,6 +141,7 @@ const PROVIDERS: {
     description: "Tech job board",
     group: "jobs",
     fields: [{ key: "secret", label: "API key", placeholder: "dice-api-key", secret: true }],
+    tip: "Dice API access is by application — contact Dice developer support for a key.",
   },
   {
     id: "reed",
@@ -128,6 +149,9 @@ const PROVIDERS: {
     description: "UK job board",
     group: "jobs",
     fields: [{ key: "secret", label: "API key", placeholder: "reed-api-key", secret: true }],
+    helpUrl: "https://www.reed.co.uk/developers/",
+    helpLabel: "reed.co.uk/developers",
+    tip: "Create a free Reed developer account to get an API key.",
   },
   {
     id: "usajobs",
@@ -135,6 +159,9 @@ const PROVIDERS: {
     description: "US federal government jobs",
     group: "jobs",
     fields: [{ key: "secret", label: "API key", placeholder: "usajobs-api-key", secret: true }],
+    helpUrl: "https://developer.usajobs.gov/",
+    helpLabel: "developer.usajobs.gov",
+    tip: "Register for a free API key AND note your account email — USAJobs requires both.",
   },
   {
     id: "wellfound",
@@ -142,6 +169,7 @@ const PROVIDERS: {
     description: "Startup jobs",
     group: "jobs",
     fields: [{ key: "secret", label: "API key", placeholder: "wellfound-api-key", secret: true }],
+    tip: "Wellfound API access requires a recruiter/company account — request access via Wellfound support.",
   },
   {
     id: "themuse",
@@ -149,6 +177,9 @@ const PROVIDERS: {
     description: "Company profiles + jobs (optional key)",
     group: "jobs",
     fields: [{ key: "secret", label: "API key", placeholder: "optional", secret: true, optional: true }],
+    helpUrl: "https://www.themuse.com/developers",
+    helpLabel: "themuse.com/developers",
+    tip: "Optional — The Muse works without a key; add one for higher rate limits.",
   },
   {
     id: "careerjet",
@@ -156,6 +187,9 @@ const PROVIDERS: {
     description: "Job search affiliate API",
     group: "jobs",
     fields: [{ key: "secret", label: "AffID", placeholder: "your-affid", secret: true }],
+    helpUrl: "https://www.careerjet.com/partners/",
+    helpLabel: "careerjet.com/partners",
+    tip: "Join the Careerjet affiliate/partner program to get your AffID.",
   },
   {
     id: "lever",
@@ -163,6 +197,9 @@ const PROVIDERS: {
     description: "Application questions for Lever postings",
     group: "jobs",
     fields: [{ key: "secret", label: "API key", placeholder: "lever-api-key", secret: true }],
+    helpUrl: "https://hire.lever.co/developer/documentation",
+    helpLabel: "hire.lever.co/developer",
+    tip: "Lever API keys live in your Lever admin → Settings → API Credentials.",
   },
 ];
 
@@ -389,6 +426,25 @@ export function IntegrationsManager() {
                 </DialogTitle>
                 <DialogDescription>{activeProvider.description}</DialogDescription>
               </DialogHeader>
+
+              {(activeProvider.tip || activeProvider.helpUrl) && (
+                <div className="rounded-lg bg-muted/60 border p-3 space-y-1.5 text-xs">
+                  {activeProvider.tip && (
+                    <p className="text-muted-foreground">{activeProvider.tip}</p>
+                  )}
+                  {activeProvider.helpUrl && (
+                    <a
+                      href={activeProvider.helpUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                    >
+                      Get a {activeProvider.label} key
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-3 py-2">
                 {activeProvider.fields.map((f) => (
