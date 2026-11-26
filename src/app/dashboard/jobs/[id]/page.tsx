@@ -448,12 +448,20 @@ export default function JobDetailPage({
         throw new Error(
           (body as { error?: string }).error ?? "Submission failed",
         );
-      const data = (body as { data: { success: boolean; message: string } }).data;
+      const data = (body as { data: { success: boolean; message: string; channel?: string } }).data;
+      const isManual = data.channel === "manual";
       toast({
-        title: data.success ? "Application submitted!" : "Submission failed",
+        title: data.success
+          ? "Application submitted!"
+          : isManual
+            ? "Manual application required"
+            : "Submission failed",
         description: data.message,
-        variant: data.success ? "default" : "destructive",
+        variant: data.success || isManual ? "default" : "destructive",
       });
+      if (isManual && job?.application_url) {
+        window.open(job.application_url, "_blank", "noopener,noreferrer");
+      }
       setAutoApplyOpen(false);
       setAutoApplyResult(null);
     } catch (err) {

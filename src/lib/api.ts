@@ -16,6 +16,11 @@ export function handleApiError(error: unknown) {
   if (error instanceof ZodError) {
     return jsonError("Validation failed", 422, error.flatten());
   }
+  // Errors explicitly marked safe-to-expose (e.g. AI provider quota issues)
+  if (error instanceof Error && (error as { expose?: boolean }).expose) {
+    const status = (error as { status?: number }).status ?? 502;
+    return jsonError(error.message, status);
+  }
   if (error instanceof Error) {
     // Log detailed error server-side, return generic message to client
     console.error(`[api] ${error.message}`, error.stack);
