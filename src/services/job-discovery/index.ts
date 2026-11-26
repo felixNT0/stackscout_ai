@@ -1,4 +1,5 @@
 import { dedupeJobs, normalizeUrl } from "@/lib/jobs/dedupe";
+import { loadUserKeys } from "@/lib/keys/store";
 import type { JobSearchFilters } from "@/types";
 import { AdzunaProvider } from "../providers/adzuna";
 import { AiDiscoveryProvider } from "../providers/ai-discovery";
@@ -80,6 +81,9 @@ export interface SearchOutcome {
 export async function discoverJobs(
   params: ProviderSearchParams,
 ): Promise<SearchOutcome> {
+  // Preload the user's integration keys so provider isConfigured()/search()
+  // can resolve per-user credentials synchronously.
+  await loadUserKeys().catch(() => new Map());
   const active = configuredProviders();
   const results = await Promise.all(active.map((p) => p.search(params)));
   const all = results.flatMap((r) => r.jobs);

@@ -5,6 +5,7 @@ import type {
   ProviderSearchResult,
 } from "../types";
 import { fetchJson, stripHtml } from "../http";
+import { resolveProviderKey } from "@/lib/keys/store";
 
 interface CareerjetJob {
   url: string;
@@ -21,11 +22,12 @@ export class CareerjetProvider implements JobProvider {
   readonly name = "careerjet";
 
   isConfigured() {
-    return Boolean(process.env.CAREERJET_AFFID);
+    return Boolean(resolveProviderKey("careerjet").apiKey);
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
-    const affid = process.env.CAREERJET_AFFID;
+    const creds = resolveProviderKey("careerjet");
+    const affid = creds.apiKey;
     if (!affid) {
       return { provider: this.name, jobs: [], error: "CAREERJET_AFFID not set" };
     }

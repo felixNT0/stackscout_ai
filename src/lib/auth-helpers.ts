@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { setKeyContextUser } from "@/lib/keys/context";
+import { loadUserKeys } from "@/lib/keys/store";
 import { getToken } from "next-auth/jwt";
 import { cookies, headers } from "next/headers";
 import { connection } from "next/server";
@@ -32,6 +34,10 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   if (!token) return null;
   const id = (token.id as string | undefined) ?? token.sub;
   if (!id) return null;
+  // Establish per-request key context and preload the user's
+  // integration keys so AI calls + job providers resolve them.
+  setKeyContextUser(id);
+  await loadUserKeys().catch(() => new Map());
   return {
     id,
     email: (token.email as string | undefined) ?? null,

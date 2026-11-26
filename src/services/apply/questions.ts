@@ -1,3 +1,5 @@
+import { resolveProviderKey } from "@/lib/keys/store";
+
 /**
  * Fetch Greenhouse application form questions.
  * Public endpoint — no API key needed for questions.
@@ -60,7 +62,7 @@ export async function fetchLeverQuestions(
   company: string,
   postingId: string,
 ): Promise<LeverQuestion[] | null> {
-  const apiKey = process.env.LEVER_API_KEY;
+  const apiKey = resolveProviderKey("lever").apiKey;
   if (!apiKey) return null; // Lever questions require API key
 
   try {

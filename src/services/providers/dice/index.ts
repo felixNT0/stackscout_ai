@@ -5,6 +5,7 @@ import type {
   ProviderSearchResult,
 } from "../types";
 import { fetchJson, stripHtml } from "../http";
+import { resolveProviderKey } from "@/lib/keys/store";
 
 interface DiceJob {
   id: string;
@@ -25,11 +26,11 @@ export class DiceProvider implements JobProvider {
   readonly name = "dice";
 
   isConfigured() {
-    return Boolean(process.env.DICE_API_KEY);
+    return Boolean(resolveProviderKey("dice").apiKey);
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
-    const apiKey = process.env.DICE_API_KEY;
+    const apiKey = resolveProviderKey("dice").apiKey;
     if (!apiKey) {
       return { provider: this.name, jobs: [], error: "DICE_API_KEY not set" };
     }

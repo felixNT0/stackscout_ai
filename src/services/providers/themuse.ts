@@ -1,4 +1,5 @@
 import { fetchWithRetry, stripHtml } from "./http";
+import { resolveProviderKey } from "@/lib/keys/store";
 import type {
     JobProvider,
     ProviderJob,
@@ -41,7 +42,7 @@ export class TheMuseProvider implements JobProvider {
       url.searchParams.set("page", String(page - 1)); // Muse uses 0-indexed
 
       // Add optional api_key for higher rate limits
-      const apiKey = process.env.THEMUSE_API_KEY;
+      const apiKey = resolveProviderKey("themuse").apiKey || undefined;
       if (apiKey) {
         url.searchParams.set("api_key", apiKey);
       }

@@ -5,6 +5,7 @@ import type {
   ProviderSearchResult,
 } from "../types";
 import { fetchJson, stripHtml } from "../http";
+import { resolveProviderKey } from "@/lib/keys/store";
 
 interface UsaJob {
   MatchedObjectId: string;
@@ -35,11 +36,11 @@ export class UsaJobsProvider implements JobProvider {
   readonly name = "usajobs";
 
   isConfigured() {
-    return Boolean(process.env.USAJOBS_API_KEY);
+    return Boolean(resolveProviderKey("usajobs").apiKey);
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
-    const apiKey = process.env.USAJOBS_API_KEY;
+    const apiKey = resolveProviderKey("usajobs").apiKey;
     if (!apiKey) {
       return { provider: this.name, jobs: [], error: "USAJOBS_API_KEY not set" };
     }

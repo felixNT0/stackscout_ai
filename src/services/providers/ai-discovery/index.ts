@@ -1,7 +1,8 @@
-import { config } from "@/config";
+import { isAiConfigured } from "@/lib/ai/openai";
 import { extractJobFromText } from "@/lib/ai/job-extraction";
 import { expandSearchQuery } from "@/lib/ai/query-expansion";
 import { fetchText, fetchWithRetry, stripHtml } from "../http";
+import { resolveProviderKey } from "@/lib/keys/store";
 import type {
   JobProvider,
   ProviderJob,
@@ -17,7 +18,7 @@ export class AiDiscoveryProvider implements JobProvider {
   readonly name = "ai-discovery";
 
   isConfigured() {
-    return Boolean(config.tavily.apiKey && config.openai.apiKey);
+    return Boolean(resolveProviderKey("tavily").apiKey && isAiConfigured());
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
@@ -25,7 +26,7 @@ export class AiDiscoveryProvider implements JobProvider {
       return {
         provider: this.name,
         jobs: [],
-        error: "Requires TAVILY_API_KEY and OPENAI_API_KEY",
+        error: "Requires a Tavily key and an AI provider key (Settings → Integrations)",
       };
     }
 
@@ -62,7 +63,7 @@ export class AiDiscoveryProvider implements JobProvider {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            api_key: config.tavily.apiKey,
+            api_key: resolveProviderKey("tavily").apiKey,
             query: searchQuery.slice(0, 400),
             search_depth: "advanced",
             max_results: Math.min(5, pageSize),

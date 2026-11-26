@@ -111,3 +111,18 @@ pnpm build         # production build
 - `src/supabase/migrations` — schema + RLS
 - `src/tests/unit` — vitest unit tests
 - `docs/API.md` — API reference
+
+## Bring Your Own Keys (BYOK)
+
+Users can configure their own AI provider and job-board API keys in
+**Dashboard → Settings → Integrations**. Keys are encrypted at rest
+(AES-256-GCM) and used only for that user's requests — each user gets
+their own provider quota/billing.
+
+Supported AI providers: OpenAI, Google Gemini, any OpenAI-compatible
+endpoint (Groq, Together, local LLMs…). Supported job providers: Adzuna,
+Jooble, Tavily, Dice, Reed, USAJobs, Wellfound, The Muse, Careerjet, Lever.
+
+User keys override app-level env vars; env vars remain the fallback when a
+user hasn't configured a key. Set `INTEGRATION_ENCRYPTION_KEY` in
+production (falls back to a key derived from `NEXTAUTH_SECRET`).

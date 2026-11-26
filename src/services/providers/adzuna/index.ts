@@ -1,4 +1,4 @@
-import { config } from "@/config";
+import { resolveProviderKey } from "@/lib/keys/store";
 import { fetchWithRetry, stripHtml } from "../http";
 import type {
   JobProvider,
@@ -41,7 +41,8 @@ export class AdzunaProvider implements JobProvider {
   readonly name = "adzuna";
 
   isConfigured() {
-    return Boolean(config.adzuna.appId && config.adzuna.apiKey);
+    const creds = resolveProviderKey("adzuna");
+    return Boolean(creds.config.app_id && creds.apiKey);
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
@@ -62,8 +63,9 @@ export class AdzunaProvider implements JobProvider {
     const url = new URL(
       `https://api.adzuna.com/v1/api/jobs/${cc}/search/${page}`,
     );
-    url.searchParams.set("app_id", config.adzuna.appId);
-    url.searchParams.set("app_key", config.adzuna.apiKey);
+    const creds = resolveProviderKey("adzuna");
+    url.searchParams.set("app_id", creds.config.app_id ?? "");
+    url.searchParams.set("app_key", creds.apiKey);
     url.searchParams.set("results_per_page", String(Math.min(pageSize, 50)));
     url.searchParams.set("what", what || query);
     url.searchParams.set("content-type", "application/json");

@@ -1,5 +1,6 @@
 import { fetchJson, stripHtml } from "./http";
 import type { JobProvider, ProviderJob, ProviderSearchParams, ProviderSearchResult } from "./types";
+import { resolveProviderKey } from "@/lib/keys/store";
 
 interface WellfoundJob {
   id: string;
@@ -27,7 +28,7 @@ export class WellfoundProvider implements JobProvider {
 
   isConfigured(): boolean {
     // Wellfound requires API key
-    return !!process.env.WELLFOUND_API_KEY;
+    return !!resolveProviderKey("wellfound").apiKey;
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
@@ -48,7 +49,7 @@ export class WellfoundProvider implements JobProvider {
     try {
       data = await fetchJson<WellfoundResponse>(url.toString(), {
         headers: {
-          Authorization: `Bearer ${process.env.WELLFOUND_API_KEY}`,
+          Authorization: `Bearer ${resolveProviderKey("wellfound").apiKey}`,
           Accept: "application/json",
         },
       });

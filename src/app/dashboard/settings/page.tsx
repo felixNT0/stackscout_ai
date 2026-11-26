@@ -1,6 +1,7 @@
 "use client";
 
 import { ApiKeysManager } from "@/components/settings/api-keys-manager";
+import { IntegrationsManager } from "@/components/settings/integrations-manager";
 import { ShareLinksManager } from "@/components/settings/share-links-manager";
 import { Button } from "@/components/ui/button";
 import {
@@ -239,6 +240,7 @@ export default function SettingsPage() {
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
           <TabsTrigger value="sharing">Sharing</TabsTrigger>
           <TabsTrigger value="developer">Developer</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -434,6 +436,10 @@ export default function SettingsPage() {
 
         <TabsContent value="developer">
           <ApiKeysManager />
+        </TabsContent>
+
+        <TabsContent value="integrations">
+          <IntegrationsManager />
         </TabsContent>
       </Tabs>
     </div>

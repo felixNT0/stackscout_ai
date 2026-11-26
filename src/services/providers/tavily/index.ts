@@ -1,6 +1,6 @@
-import { config } from "@/config";
 import type { JobProvider, ProviderJob, ProviderSearchParams, ProviderSearchResult } from "../types";
 import { fetchWithRetry, stripHtml } from "../http";
+import { resolveProviderKey } from "@/lib/keys/store";
 
 /**
  * Tavily web search — discovers job pages and company career pages.
@@ -11,7 +11,7 @@ export class TavilyProvider implements JobProvider {
   readonly name = "tavily";
 
   isConfigured() {
-    return Boolean(config.tavily.apiKey);
+    return Boolean(resolveProviderKey("tavily").apiKey);
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
@@ -34,7 +34,7 @@ export class TavilyProvider implements JobProvider {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          api_key: config.tavily.apiKey,
+          api_key: resolveProviderKey("tavily").apiKey,
           query: q.slice(0, 400),
           search_depth: "basic",
           max_results: Math.min(pageSize, 10),

@@ -1,4 +1,5 @@
 import { handleApiError, jsonError, jsonOk, parseBody, rateLimit } from "@/lib/api";
+import { resolveProviderKey } from "@/lib/keys/store";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { detectApplyChannel } from "@/services/apply";
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
                   required: q.required,
                   type: q.fields?.[0]?.type,
                 }));
-            } else if (channel.type === "lever" && process.env.LEVER_API_KEY) {
+            } else if (channel.type === "lever" && resolveProviderKey("lever").apiKey) {
               const leverQuestions = await fetchLeverQuestions(
                 (channel as { company: string }).company,
                 (channel as { postingId: string }).postingId,

@@ -5,6 +5,7 @@ import type {
   ProviderSearchResult,
 } from "../types";
 import { fetchJson, stripHtml } from "../http";
+import { resolveProviderKey } from "@/lib/keys/store";
 
 interface ReedJob {
   jobId: number;
@@ -25,11 +26,11 @@ export class ReedProvider implements JobProvider {
   readonly name = "reed";
 
   isConfigured() {
-    return Boolean(process.env.REED_API_KEY);
+    return Boolean(resolveProviderKey("reed").apiKey);
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
-    const apiKey = process.env.REED_API_KEY;
+    const apiKey = resolveProviderKey("reed").apiKey;
     if (!apiKey) {
       return { provider: this.name, jobs: [], error: "REED_API_KEY not set" };
     }

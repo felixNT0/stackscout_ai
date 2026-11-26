@@ -616,3 +616,20 @@ model PracticeSession {
   @@index([user_id])
   @@map("practice_sessions")
 }
+
+model UserApiKey {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String
+  provider       String   // ai_openai | ai_gemini | ai_custom | adzuna | jooble | tavily | dice | reed | usajobs | wellfound | themuse | careerjet | lever
+  label          String?
+  key_encrypted  String   @db.Text
+  config         Json?    // base_url, model, app_id, embedding_model, locale, etc.
+  is_primary     Boolean  @default(false) // one primary AI key per user
+  last_used_at   DateTime? @db.Timestamptz()
+  created_at     DateTime @default(now()) @db.Timestamptz()
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@unique([user_id, provider])
+  @@index([user_id])
+  @@map("user_api_keys")
+}

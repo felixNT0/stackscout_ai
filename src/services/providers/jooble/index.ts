@@ -1,13 +1,13 @@
-import { config } from "@/config";
 import type { JobProvider, ProviderJob, ProviderSearchParams, ProviderSearchResult } from "../types";
 import { fetchWithRetry, stripHtml } from "../http";
+import { resolveProviderKey } from "@/lib/keys/store";
 
 /** Jooble job search API — POST https://jooble.org/api/{key} */
 export class JoobleProvider implements JobProvider {
   readonly name = "jooble";
 
   isConfigured() {
-    return Boolean(config.jooble.apiKey);
+    return Boolean(resolveProviderKey("jooble").apiKey);
   }
 
   async search(params: ProviderSearchParams): Promise<ProviderSearchResult> {
@@ -21,7 +21,7 @@ export class JoobleProvider implements JobProvider {
     const location = filters?.location ?? "";
 
     try {
-      const res = await fetchWithRetry(`https://jooble.org/api/${config.jooble.apiKey}`, {
+      const res = await fetchWithRetry(`https://jooble.org/api/${resolveProviderKey("jooble").apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
